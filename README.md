@@ -16,7 +16,20 @@ Early bootstrap. Detailed product plan and architecture are being drafted in [do
 ## Repository layout
 
 ```
-docs/       Product plan, architecture decisions, provider design
+docs/       Product plan (PLAN.md) and system design (ARCHITECTURE.md)
+app/        Tauri 2 + React + TypeScript desktop app
+  src/
+    engine/     interview stage machine, Socratic depth controller
+    providers/  pluggable AI provider layer (Gemini, Grok, OpenAI-compat)
+    resume/     resume parsing — the interviewer's memory
+    report/     structured evaluation report
+  src-tauri/    Rust shell (keychain, SQLite, window)
 ```
 
-(Application code structure will be added once the stack is finalized.)
+## Development
+
+```
+cd app
+npm install
+npm run tauri dev
+```
