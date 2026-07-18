@@ -60,8 +60,23 @@ export interface CandidateModel {
   communicationNotes: string[];
 }
 
+/**
+ * The target role. Technical questions adapt to this — an ML Engineer
+ * interview probes different fundamentals than a backend SWE one.
+ */
+export interface JobTarget {
+  /** e.g. "ML Engineer", "Backend SWE", "Data Scientist" */
+  role: string;
+  seniority: "intern" | "junior" | "mid" | "senior" | "staff";
+  /** Raw pasted job description, if provided. */
+  jobDescription?: string;
+  /** Extracted by the reasoning model from the JD: skills/areas to probe. */
+  extractedRequirements?: string[];
+}
+
 export interface SessionConfig {
   resumeId: string;
+  jobTarget: JobTarget;
   /** Provider/model doing the realtime interviewing. */
   conversation: { providerId: string; model: string };
   /** Provider/model for fast text calls: assessment, candidate model, report. */
