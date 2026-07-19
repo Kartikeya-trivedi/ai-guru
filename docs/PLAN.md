@@ -95,8 +95,11 @@ Not "8/10". A structured evaluation covering:
   Two capability tiers: realtime-voice vs text-only (pipeline fallback).
 - **Storage**: local SQLite (resume sections, sessions, transcripts,
   reports).
-- **DSA judging**: v1 = AI-judged conversationally (like a real
-  interviewer); v1.x = optional local sandboxed "Run" against test cases.
+- **DSA rounds (V1)**: LeetCode-style original problems. Flow mirrors a
+  real coding interview: discuss approach/edge cases over voice *before*
+  coding; AI available for discussion while writing; **hybrid judging** —
+  local sandboxed test-case execution (ground truth) + AI judge (reasoning,
+  edge cases, clarity).
 
 ## Open decisions
 

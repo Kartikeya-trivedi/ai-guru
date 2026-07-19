@@ -55,10 +55,31 @@ Socratic interviewer and a structured report. Scope:
 | 6 | Structured report with evidence + actionable improvements | The artifact they keep and act on |
 | 7 | BYOK settings (Gemini, Grok, OpenAI-compat), keys in OS keychain | Trust + no metering costs |
 | 8 | Session history (past interviews + reports, local) | Progress over time |
+| 9 | DSA rounds: LeetCode-style problems with hybrid judging | Coding-interview prep is the highest-demand segment |
 
-Explicitly **out of V1**: code execution sandbox, video, screen presence
-analysis, cohort/recruiter features, payments/licensing (V1 validates with
-direct sales/manual licenses).
+### DSA round design (mirrors a real coding interview)
+
+1. **Before coding:** the interviewer presents the problem over voice; the
+   candidate discusses approach, complexity, and edge cases *first* — the
+   interviewer probes the plan Socratically before any code is written.
+2. **While coding:** in-app editor (Monaco, multi-language). The candidate
+   can think aloud; the interviewer behaves like a real one — nudges when
+   asked, drops hints if truly stuck, never writes the solution.
+3. **Judging is hybrid:**
+   - **Test cases:** the solution runs locally in a resource-limited
+     sandboxed subprocess against the problem's test cases (pass/fail
+     ground truth).
+   - **AI judge:** the reasoning model evaluates approach quality, edge-case
+     handling, complexity analysis, and code clarity — the things test
+     cases can't see.
+4. Problem bank: **LeetCode-style original problems** bundled per topic
+   (arrays, graphs, DP, ...) with test cases. We author originals in the
+   style of well-known problems — actual LeetCode content is copyrighted
+   and can't be shipped in a sold product.
+
+Explicitly **out of V1**: video, screen presence analysis,
+cohort/recruiter features, payments/licensing (V1 validates with direct
+sales/manual licenses).
 
 ## V1 execution phases
 
@@ -71,11 +92,14 @@ direct sales/manual licenses).
 - **Phase 3 — interview engine:** stage machine + depth controller +
   candidate model wired to the voice channel; interviewer persona prompt
   (empathy, professionalism, encouragement).
-- **Phase 4 — report:** thread/assessment aggregation → structured report,
-  in-app view + PDF export; session history.
-- **Phase 5 — settings & providers:** BYOK UI, keychain storage, Grok via
+- **Phase 4 — DSA rounds:** problem bank (originals + test cases), Monaco
+  editor, pre-coding Socratic discussion flow, local sandboxed execution
+  (Rust side), hybrid AI + test-case judging.
+- **Phase 5 — report:** thread/assessment aggregation → structured report
+  incl. DSA verdicts, in-app view + PDF export; session history.
+- **Phase 6 — settings & providers:** BYOK UI, keychain storage, Grok via
   pipeline fallback, OpenAI-compat adapter.
-- **Phase 6 — hardening:** E2E test suite, walkthroughs, installer builds
+- **Phase 7 — hardening:** E2E test suite, walkthroughs, installer builds
   (Windows first), latency/robustness passes.
 
 Each phase ends with: automated tests green → agent walkthrough → manual
@@ -83,7 +107,6 @@ test.
 
 ## V2+ candidates (re-rank by user feedback)
 
-- Local sandboxed code execution ("Run" button) for DSA rounds
 - Better grading calibration (rubrics per role/seniority)
 - Video presence, filler-word/communication analytics
 - Question-bank packs per company/role
@@ -113,5 +136,6 @@ test.
 | SQLite over Supabase | Desktop local-first; resume "memory" needs no cloud; offline works |
 | Gemini Live first | Only launch-ready native speech-to-speech among target providers; p95 human-feel is the product |
 | Two model roles (conversation + reasoning) | Realtime model does the talking; cheap text model does assessment/report — cost + quality both improve |
-| AI-judged code in V1, sandbox later | Matches how human interviewers evaluate; zero infra; sandbox is additive not foundational |
+| Hybrid DSA judging (test cases + AI judge) in V1 | Test cases give ground truth; the AI judge evaluates reasoning, edge-case thinking, and clarity — together they mirror how a human interviewer actually scores a coding round |
+| Original LeetCode-style problems, not LeetCode content | Actual problems are copyrighted; can't ship them in a sold product |
 | Depth controller as code, not prompt | "Drill deeper" as an explicit state machine is testable, tunable, and can't be prompt-drifted away |
