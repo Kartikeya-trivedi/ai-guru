@@ -8,6 +8,11 @@ const host = process.env.TAURI_DEV_HOST;
 export default defineConfig(async () => ({
   plugins: [react()],
 
+  // Dev-only: exposes GEMINI_API_KEY from app/.env to the client so the
+  // voice spike can run without settings UI. Shipping builds read keys from
+  // the OS keychain via Tauri instead — never bundled.
+  envPrefix: ["VITE_", "GEMINI_", "XAI_", "ELEVENLABS_"],
+
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
   // 1. prevent Vite from obscuring rust errors

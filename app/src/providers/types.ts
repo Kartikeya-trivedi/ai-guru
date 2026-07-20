@@ -33,7 +33,8 @@ export interface TextChannel {
 }
 
 export type VoiceEvent =
-  | { type: "audio"; frame: ArrayBuffer } // provider → speaker
+  /** provider → speaker. sampleRate is declared per chunk by the provider. */
+  | { type: "audio"; frame: ArrayBuffer; sampleRate: number }
   | { type: "transcript"; role: "user" | "assistant"; text: string; final: boolean }
   | { type: "interrupted" } // user barge-in acknowledged; stop playback
   | { type: "turn-complete" }

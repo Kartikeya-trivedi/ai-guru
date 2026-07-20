@@ -21,6 +21,9 @@ out/
 *.key
 secrets/
 
+# Test material — real resumes contain personal data (PII). Never commit.
+testdata/
+
 # Logs & caches
 *.log
 .cache/

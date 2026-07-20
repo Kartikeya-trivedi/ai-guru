@@ -84,9 +84,11 @@ sales/manual licenses).
 ## V1 execution phases
 
 - **Phase 0 — scaffold** ✅ (repo, docs, Tauri app, typed domain core)
-- **Phase 1 — voice spike (de-risk first):** Gemini Live channel end-to-end
-  — mic → model → speaker with barge-in; measure p95 first-audio latency.
-  Go/no-go gate for the whole product.
+- **Phase 1 — voice spike (de-risk first)** ✅ **PASSED** — Gemini Live
+  channel end-to-end with barge-in; **544 ms** time-to-first-audio on
+  `gemini-3.1-flash-live-preview` vs. the 800 ms budget. Evidence and the
+  rejected-model comparison: [VALIDATION.md](VALIDATION.md). Human
+  feel-test still outstanding (needs a headset).
 - **Phase 2 — resume & JD pipeline:** upload PDF/DOCX → parse → structured
   sections in SQLite; JD paste → extracted role requirements.
 - **Phase 3 — interview engine:** stage machine + depth controller +
@@ -135,6 +137,7 @@ test.
 | BYOK, no relay server | Zero infra cost, better latency (device→provider direct), privacy story sells |
 | SQLite over Supabase | Desktop local-first; resume "memory" needs no cloud; offline works |
 | Gemini Live first | Only launch-ready native speech-to-speech among target providers; p95 human-feel is the product |
+| `gemini-3.1-flash-live-preview` as the launch model | Measured 544 ms to first audio vs. 1813 ms for `gemini-2.5-flash-native-audio` — 3.3× faster on the metric that decides whether the product feels human ([VALIDATION.md](VALIDATION.md)) |
 | Two model roles (conversation + reasoning) | Realtime model does the talking; cheap text model does assessment/report — cost + quality both improve |
 | Hybrid DSA judging (test cases + AI judge) in V1 | Test cases give ground truth; the AI judge evaluates reasoning, edge-case thinking, and clarity — together they mirror how a human interviewer actually scores a coding round |
 | Original LeetCode-style problems, not LeetCode content | Actual problems are copyrighted; can't ship them in a sold product |
