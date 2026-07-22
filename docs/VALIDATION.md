@@ -52,3 +52,50 @@ complete in a real page context, not just Node.
 **Status: Phase 1 gate PASSED on the measurable criteria.** The 544 ms
 result clears the budget with ~250 ms of headroom for engine work in the
 loop. Human feel-test remains outstanding but is not blocking Phase 2.
+
+## Phase 2 — resume as memory (in progress)
+
+`node app/scripts/validate-resume-parse.mjs` runs the real pipeline
+(PDF → text → structured memory) over real resumes in `testdata/`.
+
+### Extraction
+
+| Resume | Extracted | Result |
+|--------|-----------|--------|
+| Sample 1 | 3,069 chars / 49 lines | PASS |
+| Sample 2 | 3,600 chars / 71 lines | PASS |
+
+pdf.js emits positioned fragments, not lines; we rebuild lines by Y-position
+and sort fragments by X. Section headings and bullets survive, which matters
+because the model parses `PROJECTS\n- X` far more reliably than fragment soup.
+
+### Structuring
+
+Both resumes: name, experience, projects, skills, education all extracted;
+**every project got ≥2 probe angles**. Spot-check of quality — these are the
+questions the product's differentiator depends on:
+
+> *"2.7x cuBLAS fp32 (int4 matmul): How was this benchmarked? What were the
+> specific hardware and software configurations for both your implementation
+> and the cuBLAS baseline?"*
+
+> *"Says 'three-layer security model' — what are the layers, why that
+> specific architecture, and what alternatives were considered?"*
+
+These are genuinely senior-interviewer questions, not generic prompts. The
+"resume as memory, with probe angles precomputed" design works.
+
+### Findings that changed the code
+
+1. **`gemini-3.5-flash` returned 503 on every attempt** (4 retries, both
+   resumes) while `gemini-2.5-flash` served the same work fine. Not
+   transient — the model is saturated for this free-tier key. A BYOK product
+   cannot hard-fail on this, so `geminiGenerateWithModel` now retries with
+   exponential backoff + jitter and then **falls through a model chain**
+   (`REASONING_FALLBACKS`). Non-retryable statuses (e.g. 400) do *not*
+   fall through — they'd fail identically on every model and just burn quota.
+2. **Structuring took ~15-20 s** (26 s including the failed 3.5 retries).
+   Fine for a one-time upload. **Not fine for in-interview answer
+   assessment**, which runs while the candidate is talking. Phase 3 must
+   measure assessment latency separately and likely use a smaller model
+   (`gemini-2.5-flash-lite`) with a much tighter output schema.

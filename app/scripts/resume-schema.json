@@ -1,0 +1,47 @@
+{
+  "type": "object",
+  "properties": {
+    "name": { "type": "string" },
+    "summary": { "type": "string" },
+    "experience": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "company": { "type": "string" },
+          "role": { "type": "string" },
+          "period": { "type": "string" },
+          "highlights": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["company", "role", "period", "highlights"]
+      }
+    },
+    "projects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "technologies": { "type": "array", "items": { "type": "string" } },
+          "probeAngles": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["name", "description", "technologies", "probeAngles"]
+      }
+    },
+    "skills": { "type": "array", "items": { "type": "string" } },
+    "education": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "institution": { "type": "string" },
+          "degree": { "type": "string" },
+          "period": { "type": "string" }
+        },
+        "required": ["institution", "degree", "period"]
+      }
+    }
+  },
+  "required": ["name", "experience", "projects", "skills", "education"]
+}
