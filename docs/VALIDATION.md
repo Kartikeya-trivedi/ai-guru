@@ -41,17 +41,29 @@ with a synthetic 440 Hz stream:
 mic call — proving the WebSocket handshake, key injection, and setup
 complete in a real page context, not just Node.
 
-### Not yet validated (needs a human + headset)
+### Human feel-test — PASSED (2026-07-16)
 
-- Physical mic capture through a real device.
-- **Subjective feel**: does the interviewer sound human, does barge-in feel
-  natural mid-sentence, is echo cancellation sufficient on speakers?
-- p95 across a full multi-turn conversation (the harness measures single
-  turns; `LatencyTracker` in the app records live p50/p95 during a session).
+Owner ran the live spike in Chrome with a headset: real mic capture, real
+multi-turn conversation, barge-in. Verdict: **"works extremely fine"** — no
+robotic feel, no barge-in lag, latency not perceptible as waiting.
 
-**Status: Phase 1 gate PASSED on the measurable criteria.** The 544 ms
-result clears the budget with ~250 ms of headroom for engine work in the
-loop. Human feel-test remains outstanding but is not blocking Phase 2.
+This was the one gate no harness could settle. It is the reason the product
+is viable.
+
+### Still open
+
+- **Tauri/WebView2 microphone access** on the packaged desktop app.
+  Validated in Chrome, not yet in the Tauri window. Known upstream pain
+  point ([tauri#12547](https://github.com/tauri-apps/tauri/issues/12547),
+  [tauri#5042](https://github.com/tauri-apps/tauri/issues/5042)): some apps
+  never prompt at all. **This is a foundational risk, not polish** — voice
+  is the product, and if WebView2 can't reliably grant a mic, the
+  Tauri-over-Electron decision is wrong. Must be settled before Phase 4,
+  not deferred to hardening.
+- p95 across a long (>30 min) session — spike runs were short.
+
+**Status: Phase 1 gate PASSED**, measured *and* subjectively. 544 ms leaves
+~250 ms of headroom for engine work in the loop.
 
 ## Phase 2 — resume as memory (in progress)
 
@@ -99,3 +111,45 @@ These are genuinely senior-interviewer questions, not generic prompts. The
    assessment**, which runs while the candidate is talking. Phase 3 must
    measure assessment latency separately and likely use a smaller model
    (`gemini-2.5-flash-lite`) with a much tighter output schema.
+   → Resolved in Phase 3 below: flash-lite at ~1.9 s.
+
+## Phase 3 — assessment: latency and judgement
+
+`node app/scripts/validate-assessment.mjs` grades five fixture answers whose
+correct verdicts a senior interviewer would agree on. The fixtures are built
+to catch a grader that rewards *fluency* — `fluent-but-shallow` name-drops
+vLLM instead of explaining, `fluent-evasion` agrees the problem is hard and
+never answers, `confident-and-wrong` states falsehoods with total assurance.
+
+### Result (after the honesty fix below)
+
+| Model | Judgement | avg | p50 | max |
+|-------|-----------|-----|-----|-----|
+| **`gemini-2.5-flash-lite`** | **5/5** | **1866 ms** | 1333 ms | 3659 ms |
+| `gemini-2.5-flash` | 5/5 | 4542 ms | 4329 ms | 6692 ms |
+
+→ **Assessment model: `gemini-2.5-flash-lite`.** Identical accuracy at 2.4×
+the speed; the larger model buys nothing on this task.
+
+Latency is acceptable because assessment is **off the critical path** — see
+"steering" in [ARCHITECTURE.md](ARCHITECTURE.md). It never delays the
+interviewer's reply; it steers the following turn.
+
+### The finding that changed the prompt
+
+First run, flash-lite scored **4/5**: it labelled an honest *"I don't know,
+I tuned occupancy empirically"* as **evasive**.
+
+Behaviourally this was harmless — it still set `atKnowledgeLimit`, so the
+depth controller moved on correctly. But the quality label feeds the
+**report**, and marking honesty as evasion would produce an unjust
+evaluation of a real person — punishing precisely the behaviour a good
+interview should reward. That is a product failure, not a metric failure.
+
+The prompt now draws the line explicitly: *"Saying 'I don't know' plainly is
+NOT evasive. Evasion is pretending to answer."*
+
+Result: flash-lite went to **5/5** and now grades that answer *adequate,
+atKnowledgeLimit=true* with a fair note. **The fairness fix is also what made
+the cheap model good enough** — caring about the candidate and cutting cost
+turned out to be the same edit.

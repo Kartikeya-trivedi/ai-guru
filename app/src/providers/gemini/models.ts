@@ -13,3 +13,12 @@ export const LIVE_MODEL = "gemini-3.1-flash-live-preview";
  */
 export const REASONING_MODEL = "gemini-3.5-flash";
 export const REASONING_FALLBACKS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"];
+
+/**
+ * Answer assessment runs during the interview: smallest capable model, tiny
+ * output schema. Validated at 5/5 on the judgement fixtures at ~1.9s avg —
+ * same accuracy as 2.5-flash at 2.4x the speed, so the bigger model buys
+ * nothing here. See docs/VALIDATION.md.
+ */
+export const ASSESSMENT_MODEL = "gemini-2.5-flash-lite";
+export const ASSESSMENT_FALLBACKS = ["gemini-2.5-flash"];

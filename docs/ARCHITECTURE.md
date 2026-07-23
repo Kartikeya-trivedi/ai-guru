@@ -58,6 +58,36 @@ assesses: was the answer strong, shallow, evasive, wrong? Then it decides:
 Each drill-down is tracked as a `Thread` (topic, depth reached, quality of
 answers) — this becomes the raw material for the report.
 
+The decision itself (`engine/depth.ts`) is a **pure function, not a prompt**.
+"Keep drilling until the candidate hits their limit, then ease off" is the
+one behaviour that must never drift, and prompts drift. As code it is
+testable, tunable, and identical in every session.
+
+### Steering: why the controller cannot dictate each question
+
+A native-audio model answers autonomously — measured at **544 ms** from
+end-of-speech to first audio. Assessment takes **~1.9 s**. So the engine
+*cannot* assess an answer and compose the next question before the
+interviewer must already be speaking. Blocking on it would destroy the
+544 ms that makes the product feel human — i.e. the whole bet.
+
+The resolution splits the work by timescale:
+
+- **The persona drills** (`engine/persona.ts`). The Live model is instructed
+  to be natively Socratic, so layer-by-layer follow-ups happen *in the
+  conversation*, at conversational latency, with no engine round-trip.
+- **The engine steers** (`engine/depth.ts` + `updateContext`). Assessment
+  runs async and shapes the *next* turn: stage transitions, "you've drilled
+  this three layers, move on", "the candidate is struggling — ease off",
+  "probe this project's precomputed angles next".
+
+This means steering lags by one turn. That is acceptable — a human
+interviewer also re-plans between questions, not mid-sentence — and it is
+the only design that preserves both the drilling and the latency.
+
+Consequence: assessment latency has slack (it is off the critical path), so
+the assessment model is chosen for **judgement quality**, not raw speed.
+
 ### Candidate model
 
 A running structured summary of what the interview has revealed (claims
