@@ -1,7 +1,7 @@
-import { VoiceSpike } from "./spike/VoiceSpike";
+import { InterviewApp } from "./ui/InterviewApp";
 
 function App() {
-  return <VoiceSpike />;
+  return <InterviewApp />;
 }
 
 export default App;
