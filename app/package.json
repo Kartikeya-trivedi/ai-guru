@@ -7,11 +7,22 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
+    "test": "vitest run",
     "tauri": "tauri"
   },
+  "//overrides": "monaco-editor pins a dompurify with known XSS advisories. We ship this app to customers, so force the patched line rather than inherit CVEs.",
+  "overrides": {
+    "dompurify": "^3.4.12"
+  },
   "dependencies": {
+    "@fontsource/ibm-plex-mono": "^5.2.7",
+    "@fontsource/ibm-plex-sans": "^5.2.8",
+    "@fontsource/instrument-serif": "^5.2.8",
+    "@monaco-editor/react": "^4.7.0",
     "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-dialog": "^2.7.1",
     "@tauri-apps/plugin-opener": "^2",
+    "@tauri-apps/plugin-sql": "^2.4.0",
     "pdfjs-dist": "^6.1.200",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"

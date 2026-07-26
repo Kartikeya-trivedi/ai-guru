@@ -1,0 +1,448 @@
+/*
+ * Design language: broadcast control room.
+ *
+ * The emotional truth of an interview is being watched under pressure, so
+ * the app reads as an instrument panel running a live session — matte warm
+ * black, a single hot tally light for LIVE, technical mono for anything
+ * measured, and an editorial serif for the parts that pass judgement on a
+ * person. Restraint over decoration: nothing here should compete with the
+ * conversation.
+ *
+ * Fonts are bundled (@fontsource), never fetched — this is an offline-first
+ * desktop product.
+ */
+
+@import "@fontsource/instrument-serif/400.css";
+@import "@fontsource/instrument-serif/400-italic.css";
+@import "@fontsource/ibm-plex-sans/400.css";
+@import "@fontsource/ibm-plex-sans/500.css";
+@import "@fontsource/ibm-plex-sans/600.css";
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/500.css";
+
+:root {
+  /* Warm near-black: matte studio equipment, not blue-black screen glow. */
+  --bg: #0c0b0a;
+  --bg-raised: #131110;
+  --surface: #171513;
+  --surface-hi: #1e1b19;
+  --line: #2b2724;
+  --line-hi: #3a3531;
+
+  --text: #ede9e3;
+  --text-dim: #a49c92;
+  --text-faint: #6f675e;
+
+  /* Tally light. Broadcast convention: red-orange means you are live. */
+  --live: #ff5c22;
+  --live-glow: rgba(255, 92, 34, 0.25);
+
+  /* Instrumentation readouts. */
+  --data: #4ec9d4;
+
+  --good: #6bbf59;
+  --warn: #e0a341;
+  --bad: #e05252;
+
+  --serif: "Instrument Serif", Georgia, serif;
+  --sans: "IBM Plex Sans", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --r: 4px;
+  --r-lg: 8px;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 400 14px/1.6 var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Film grain: keeps large dark fields from looking like flat dead pixels. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.028;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 220 220' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+h1, h2, h3 { margin: 0; font-weight: 400; }
+
+/* Anything measured is mono; anything judged is serif. */
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+.eyebrow {
+  font: 500 10px/1 var(--mono);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.serif-title {
+  font-family: var(--serif);
+  font-size: 30px;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+
+/* ── shell ─────────────────────────────────────────────────────────── */
+
+.shell { display: flex; flex-direction: column; height: 100%; }
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 0 20px;
+  height: 52px;
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(var(--bg-raised), var(--bg));
+  flex-shrink: 0;
+}
+
+.brand {
+  font-family: var(--serif);
+  font-size: 19px;
+  letter-spacing: 0.01em;
+}
+.brand em { color: var(--live); font-style: italic; }
+
+.topbar .spacer { flex: 1; }
+
+/* Tally light — the one piece of chrome allowed to move. */
+.tally {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font: 500 10px/1 var(--mono);
+  letter-spacing: 0.14em;
+  color: var(--text-faint);
+}
+.tally .bulb {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--line-hi);
+}
+.tally.on { color: var(--live); }
+.tally.on .bulb {
+  background: var(--live);
+  box-shadow: 0 0 0 0 var(--live-glow);
+  animation: pulse 2s ease-out infinite;
+}
+@keyframes pulse {
+  0%   { box-shadow: 0 0 0 0 var(--live-glow); }
+  70%  { box-shadow: 0 0 0 7px rgba(255, 92, 34, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 92, 34, 0); }
+}
+
+/* ── stage rail ────────────────────────────────────────────────────── */
+
+.rail { display: flex; align-items: center; gap: 0; }
+.rail-step {
+  font: 400 10px/1 var(--mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  padding: 4px 9px;
+  border: 1px solid transparent;
+  border-radius: var(--r);
+  white-space: nowrap;
+}
+.rail-step.done { color: var(--text-dim); }
+.rail-step.active {
+  color: var(--live);
+  border-color: rgba(255, 92, 34, 0.35);
+  background: rgba(255, 92, 34, 0.07);
+}
+.rail-sep { width: 10px; height: 1px; background: var(--line); flex-shrink: 0; }
+
+/* ── layout ────────────────────────────────────────────────────────── */
+
+.main { flex: 1; overflow: hidden; display: flex; }
+.center { margin: 0 auto; padding: 44px 24px; max-width: 640px; width: 100%; overflow-y: auto; }
+
+.split {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  width: 100%;
+  overflow: hidden;
+}
+.split > aside {
+  border-right: 1px solid var(--line);
+  overflow-y: auto;
+  padding: 20px;
+  background: var(--bg-raised);
+}
+.split > section { overflow-y: auto; padding: 24px 28px; }
+
+/* ── surfaces ──────────────────────────────────────────────────────── */
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 20px;
+}
+
+.stack > * + * { margin-top: 14px; }
+
+/* Staggered reveal — one orchestrated entrance, not scattered fidgets. */
+.reveal { animation: rise 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) backwards; }
+.reveal:nth-child(1) { animation-delay: 0.02s; }
+.reveal:nth-child(2) { animation-delay: 0.08s; }
+.reveal:nth-child(3) { animation-delay: 0.14s; }
+.reveal:nth-child(4) { animation-delay: 0.2s; }
+@keyframes rise {
+  from { opacity: 0; transform: translateY(7px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::after { animation: none !important; transition: none !important; }
+}
+
+/* ── controls ──────────────────────────────────────────────────────── */
+
+label { display: block; }
+.field { display: block; margin-top: 16px; }
+.field > .eyebrow { margin-bottom: 6px; display: block; }
+
+input[type="text"], input[type="password"], select, textarea {
+  width: 100%;
+  padding: 9px 11px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  color: var(--text);
+  font: 400 13px/1.5 var(--sans);
+  transition: border-color 0.15s;
+}
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--live);
+  box-shadow: 0 0 0 3px rgba(255, 92, 34, 0.1);
+}
+textarea { resize: vertical; font-family: var(--mono); font-size: 12px; }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border-radius: var(--r);
+  border: 1px solid var(--line-hi);
+  background: var(--surface-hi);
+  color: var(--text);
+  font: 500 13px/1 var(--sans);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, transform 0.06s;
+}
+.btn:hover:not(:disabled) { border-color: var(--text-faint); background: #262220; }
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.btn-live {
+  width: 100%;
+  padding: 12px;
+  background: var(--live);
+  border-color: var(--live);
+  color: #14100e;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.btn-live:hover:not(:disabled) { background: #ff6f3c; border-color: #ff6f3c; }
+
+.btn-ghost { background: transparent; border-color: var(--line); }
+
+/* Drop zone — the first thing anyone sees. */
+.dropzone {
+  border: 1px dashed var(--line-hi);
+  border-radius: var(--r-lg);
+  padding: 44px 24px;
+  text-align: center;
+  background: var(--surface);
+  transition: border-color 0.2s, background 0.2s;
+  cursor: pointer;
+}
+.dropzone:hover, .dropzone.over {
+  border-color: var(--live);
+  background: rgba(255, 92, 34, 0.04);
+}
+.dropzone input { display: none; }
+
+/* ── data display ──────────────────────────────────────────────────── */
+
+.readout { display: flex; gap: 18px; align-items: baseline; }
+.readout .metric { font: 500 11px/1 var(--mono); color: var(--text-faint); }
+.readout .metric b { color: var(--data); font-weight: 500; }
+.readout .metric b.hot { color: var(--bad); }
+
+/* A thread is a signal trace: topic, depth, and the quality of each layer. */
+.trace { padding: 12px 0; border-bottom: 1px solid var(--line); }
+.trace:last-child { border-bottom: 0; }
+.trace-topic { font-size: 13px; font-weight: 500; line-height: 1.35; }
+.trace-meta { font: 400 10px/1 var(--mono); color: var(--text-faint); margin-top: 5px; letter-spacing: 0.06em; }
+.trace-dots { display: flex; gap: 3px; margin-top: 8px; }
+.dot {
+  width: 100%;
+  max-width: 26px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--line-hi);
+}
+.dot.strong   { background: var(--good); }
+.dot.adequate { background: var(--data); }
+.dot.shallow  { background: var(--warn); }
+.dot.evasive  { background: var(--warn); }
+.dot.wrong    { background: var(--bad); }
+
+/* ── transcript ────────────────────────────────────────────────────── */
+
+.turn { display: grid; grid-template-columns: 78px 1fr; gap: 14px; padding: 9px 0; }
+.turn-who { font: 500 10px/1.7 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-faint); }
+.turn.assistant .turn-who { color: var(--live); }
+.turn.user .turn-who { color: var(--data); }
+.turn-text { font-size: 14px; }
+.turn.user .turn-text { color: var(--text-dim); }
+
+/* ── report ────────────────────────────────────────────────────────── */
+
+.verdict {
+  border-left: 2px solid var(--live);
+  padding: 4px 0 4px 18px;
+  font-family: var(--serif);
+  font-size: 21px;
+  line-height: 1.4;
+}
+
+.dim-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 14px;
+  align-items: center;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+.dim-name { font-size: 13px; font-weight: 500; }
+.dim-just { font-size: 13px; color: var(--text-dim); margin-top: 3px; }
+
+/* Score as a meter, not a bare number — a 3/5 should look like a 3/5. */
+.meter { display: flex; gap: 3px; }
+.meter i { width: 16px; height: 5px; border-radius: 1px; background: var(--line-hi); }
+.meter i.on { background: var(--data); }
+.meter.low i.on { background: var(--warn); }
+.meter.bad i.on { background: var(--bad); }
+
+.evidence {
+  font: 400 12px/1.6 var(--mono);
+  color: var(--text-faint);
+  border-left: 1px solid var(--line-hi);
+  padding-left: 11px;
+  margin-top: 7px;
+}
+
+.tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag {
+  font: 400 11px/1 var(--mono);
+  padding: 5px 8px;
+  border-radius: var(--r);
+  border: 1px solid var(--line);
+  color: var(--text-dim);
+}
+.tag.good { border-color: rgba(107, 191, 89, 0.3); color: var(--good); }
+.tag.bad { border-color: rgba(224, 82, 82, 0.3); color: var(--bad); }
+
+/* ── misc ──────────────────────────────────────────────────────────── */
+
+.notice {
+  border: 1px solid rgba(224, 82, 82, 0.4);
+  background: rgba(224, 82, 82, 0.07);
+  color: #f3a6a3;
+  padding: 10px 12px;
+  border-radius: var(--r);
+  font-size: 13px;
+}
+.notice.info {
+  border-color: var(--line-hi);
+  background: var(--surface);
+  color: var(--text-dim);
+}
+
+.muted { color: var(--text-dim); }
+.faint { color: var(--text-faint); }
+.small { font-size: 12px; }
+
+.spinner {
+  width: 13px; height: 13px;
+  border: 1.5px solid var(--line-hi);
+  border-top-color: var(--live);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  display: inline-block;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--line); border-radius: 5px; }
+::-webkit-scrollbar-thumb:hover { background: var(--line-hi); }
+
+/* ── print ─────────────────────────────────────────────────────────────
+ * "Export PDF" prints the report. Someone may take this into a mentor
+ * session or attach it to an application, so it has to read as a document,
+ * not a screenshot of a dark app: white paper, black text, no chrome, and
+ * no dimension split across a page break.
+ */
+@media print {
+  @page { margin: 18mm; }
+
+  body {
+    background: #fff;
+    color: #111;
+  }
+  body::after { display: none; }
+
+  .topbar, .btn, .spinner { display: none !important; }
+
+  .shell, .main, .center { display: block; height: auto; overflow: visible; padding: 0; max-width: none; }
+
+  .panel {
+    background: none;
+    border: 0;
+    border-top: 1px solid #ddd;
+    border-radius: 0;
+    padding: 12px 0 0;
+    margin-top: 18px;
+  }
+
+  .reveal { animation: none; }
+
+  .serif-title { font-size: 26pt; }
+  .verdict { border-left: 2px solid #111; font-size: 14pt; }
+  .eyebrow, .faint, .muted { color: #555 !important; }
+  .evidence { border-left-color: #ccc; color: #444; }
+
+  /* Meters are colour-coded on screen; on paper print the number too. */
+  .meter { display: none; }
+  .dim-row::after {
+    content: attr(data-score) " / 5";
+    font: 500 11pt var(--mono);
+  }
+
+  .tag { border-color: #bbb !important; color: #222 !important; }
+  .tag.good::before { content: "+ "; }
+  .tag.bad::before { content: "− "; }
+
+  .dim-row, .trace { break-inside: avoid; }
+  h1, h2, h3 { break-after: avoid; }
+}

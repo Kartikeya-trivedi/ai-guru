@@ -66,16 +66,32 @@ Socratic interviewer and a structured report. Scope:
    can think aloud; the interviewer behaves like a real one — nudges when
    asked, drops hints if truly stuck, never writes the solution.
 3. **Judging is hybrid:**
-   - **Test cases:** the solution runs locally in a resource-limited
-     sandboxed subprocess against the problem's test cases (pass/fail
-     ground truth).
+   - **Test cases:** the solution runs locally against the problem's test
+     cases (pass/fail ground truth). Results are fed to the judge as ground
+     truth it may not contradict — a model talking itself into "looks right"
+     over a failing suite is the exact failure hybrid judging prevents.
    - **AI judge:** the reasoning model evaluates approach quality, edge-case
-     handling, complexity analysis, and code clarity — the things test
-     cases can't see.
+     *anticipation*, complexity, and code clarity — what tests can't see.
 4. Problem bank: **LeetCode-style original problems** bundled per topic
    (arrays, graphs, DP, ...) with test cases. We author originals in the
    style of well-known problems — actual LeetCode content is copyrighted
    and can't be shipped in a sold product.
+
+**Execution scope in V1 — Python and JavaScript only.** Both marshal test
+data as JSON in a few lines of stdlib. C++ and Java have no cheap stdlib
+JSON, so a correct harness needs per-signature marshalling; a half-built one
+would report a *correct* solution as failing, and failing a candidate
+unfairly is the worst bug this product can ship. C++/Java are therefore
+write-and-AI-judge in V1, and the UI says so plainly instead of pretending.
+V1.x: generate marshalling from each problem's typed signature.
+
+**Code-execution threat model.** The candidate runs their own code on their
+own machine — the same trust boundary as opening a terminal themselves. So
+execution is not sandboxed against the user; it is bounded to protect the
+*interview*: hard wall-clock kill (runaway loops), capped output, and
+crashes surfaced as test failures. If this ever runs code the user did not
+write (shared solutions, hosted mode), that model breaks and real isolation
+becomes mandatory.
 
 Explicitly **out of V1**: video, screen presence analysis,
 cohort/recruiter features, payments/licensing (V1 validates with direct
@@ -94,15 +110,16 @@ sales/manual licenses).
 - **Phase 3 — interview engine:** stage machine + depth controller +
   candidate model wired to the voice channel; interviewer persona prompt
   (empathy, professionalism, encouragement).
-- **Phase 4 — DSA rounds:** problem bank (originals + test cases), Monaco
-  editor, pre-coding Socratic discussion flow, local sandboxed execution
-  (Rust side), hybrid AI + test-case judging.
-- **Phase 5 — report:** thread/assessment aggregation → structured report
-  incl. DSA verdicts, in-app view + PDF export; session history.
-- **Phase 6 — settings & providers:** BYOK UI, keychain storage, Grok via
-  pipeline fallback, OpenAI-compat adapter.
+- **Phase 4 — DSA rounds** ✅ built — problem bank (originals + test cases),
+  Monaco editor, pre-coding discussion gate, local execution (Rust), hybrid
+  AI + test-case judging. Python/JS execute; C++/Java AI-judged (above).
+- **Phase 5 — report** ✅ built — thread/assessment aggregation → structured
+  report grounded in depth-per-thread, in-app view + print-to-PDF.
+- **Phase 6 — settings & providers** ✅ BYOK UI + OS keychain via Rust.
+  Grok pipeline fallback and OpenAI-compat adapter still to do.
 - **Phase 7 — hardening:** E2E test suite, walkthroughs, installer builds
-  (Windows first), latency/robustness passes.
+  (Windows first), latency/robustness passes. **Blocking item: Tauri/
+  WebView2 microphone access** — see VALIDATION.md; foundational, not polish.
 
 Each phase ends with: automated tests green → agent walkthrough → manual
 test.
@@ -141,4 +158,8 @@ test.
 | Two model roles (conversation + reasoning) | Realtime model does the talking; cheap text model does assessment/report — cost + quality both improve |
 | Hybrid DSA judging (test cases + AI judge) in V1 | Test cases give ground truth; the AI judge evaluates reasoning, edge-case thinking, and clarity — together they mirror how a human interviewer actually scores a coding round |
 | Original LeetCode-style problems, not LeetCode content | Actual problems are copyrighted; can't ship them in a sold product |
+| Execution limited to Python/JS in V1 | A harness that fails correct C++/Java solutions is worse than no harness; honest gating beats a broken feature |
+| Code execution not sandboxed against the user | The candidate runs their own code on their own machine — same trust boundary as their own terminal. Bounds exist to protect the interview (timeouts, output caps), not to defend the machine from its owner |
+| `dompurify` pinned via npm overrides | Monaco ships a version with known XSS advisories; we sell this app, so we don't inherit CVEs |
+| Fonts bundled via @fontsource | Offline-first desktop product — a UI that needs a CDN to render its own type isn't offline |
 | Depth controller as code, not prompt | "Drill deeper" as an explicit state machine is testable, tunable, and can't be prompt-drifted away |

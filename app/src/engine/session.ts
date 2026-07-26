@@ -306,6 +306,62 @@ export class InterviewSession {
     this.channel?.updateContext(instructions);
   }
 
+  // ── coding round ───────────────────────────────────────────────────
+
+  /**
+   * Hand the candidate a problem. The interviewer must NOT let them code
+   * yet — the discussion comes first, and that ordering is the product.
+   */
+  presentProblem(problem: {
+    title: string;
+    statement: string;
+    optimalComplexity: string;
+    discussionAngles: string[];
+    edgeCases: string[];
+  }): void {
+    this.currentThread = null;
+    this.topicQueue = [`coding: ${problem.title}`];
+    this.steer(
+      `[CODING ROUND — the problem is now on the candidate's screen]
+
+${problem.title}
+${problem.statement}
+
+Read them the gist out loud, then make them think BEFORE they type. Do not let them jump into code, and do not give away the approach.
+
+Probe their plan:
+${problem.discussionAngles.map((a) => `  - ${a}`).join("\n")}
+
+Intended optimal: ${problem.optimalComplexity}. Edge cases a strong candidate raises unprompted: ${problem.edgeCases.join("; ")}. If they miss an edge case, do NOT list it for them — ask a question that leads them to it.
+
+Once their plan is sound (or they're clearly stuck after honest effort), tell them to go ahead and write it.`,
+    );
+  }
+
+  /** They're coding now — the interviewer watches rather than lectures. */
+  enterCodingPhase(): void {
+    this.steer(
+      `[CANDIDATE IS NOW WRITING CODE]
+
+Go quiet. Let them work and think aloud. Do not narrate, do not backseat-drive, do not point out bugs the moment you spot one — a real interviewer lets a candidate find their own mistake.
+
+Answer questions if asked. If they are truly stuck for a long stretch, offer the smallest hint that unblocks them, and note that you had to.`,
+    );
+  }
+
+  /** Feed the run outcome back so the interviewer can react like a human. */
+  reportSolution(input: { passed: number; total: number; executed: boolean }): void {
+    this.steer(
+      input.executed
+        ? `[SOLUTION SUBMITTED — tests: ${input.passed}/${input.total} passed]
+
+React the way an interviewer would: if it passed, push on complexity and what they'd change at scale. If cases failed, don't announce which — ask them to walk through their code on an input that breaks it and let them find it.`
+        : `[SOLUTION SUBMITTED — not executed in this language]
+
+Walk through it with them: complexity, edge cases, what would break. Reason about correctness together rather than asserting a verdict.`,
+    );
+  }
+
   stop(): void {
     this.mic?.stop();
     this.mic = null;
