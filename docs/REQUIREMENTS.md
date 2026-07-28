@@ -4,7 +4,19 @@
 
 | Key | Where to get it | Needed for | When |
 |-----|-----------------|------------|------|
-| **Gemini API key** | https://aistudio.google.com → "Get API key" (free tier works for dev; Live API access included) | Realtime voice interviewer + reasoning model | **Phase 1 (now)** |
+| **Gemini API key — billing enabled** | https://aistudio.google.com → "Get API key", then enable billing | Realtime voice interviewer + reasoning model | **Now** |
+
+> **The free tier is not enough to run one interview.** Measured, not
+> assumed: a session makes an assessment call per answer (20-40), plus a
+> resume parse, plus a report — and free-tier daily request limits are far
+> below that. During Phase 4 validation the key returned
+> `429 generate_content_free_tier_requests` and stayed exhausted for the day.
+>
+> This is a **product** issue, not just a dev inconvenience: customers who
+> BYOK with a free key will stall mid-interview. The app now detects a spent
+> quota and says so plainly instead of retrying into a wall, but onboarding
+> must tell users up front that billing is required. Free tier is fine for
+> the voice spike and a couple of parses; it is not fine for real use.
 | xAI (Grok) API key | https://console.x.ai | Grok text provider | Phase 6 |
 | ElevenLabs API key | https://elevenlabs.io | TTS in the fallback pipeline for text-only providers | Phase 6 (optional) |
 

@@ -8,12 +8,19 @@
  *
  * Two conventions the types cannot express:
  *
- *  - Tree inputs are encoded as level-order arrays with `null` for an absent
- *    child and trailing nulls omitted. The runner materialises them into the
- *    target language's TreeNode before invoking the candidate's function — the
- *    candidate never sees the array form.
  *  - `signatures` are declarations only. The runner supplies the surrounding
  *    scaffolding: imports, the TreeNode definition, and argument marshalling.
+ *  - Tree inputs are encoded as level-order arrays with `null` for an absent
+ *    child and trailing nulls omitted.
+ *
+ * The tree encoding is a REQUIREMENT ON THE RUNNER, not a description of it.
+ * `buildDriver` honours it: `treeArgPositions` reads the argument positions
+ * typed as TreeNode out of the Python signature (the only one carrying
+ * annotations; arg order matches across languages) and the driver
+ * materialises those arrays into nodes before calling. Without that, a
+ * correct tree solution throws on every case and is reported 0/n — see
+ * driver.integration.test.ts, which runs a real solution through real
+ * interpreters to keep it that way.
  */
 
 export type Difficulty = "easy" | "medium" | "hard";

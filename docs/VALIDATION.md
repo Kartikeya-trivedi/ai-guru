@@ -153,3 +153,64 @@ Result: flash-lite went to **5/5** and now grades that answer *adequate,
 atKnowledgeLimit=true* with a fair note. **The fairness fix is also what made
 the cheap model good enough** — caring about the candidate and cutting cost
 turned out to be the same edit.
+
+## Phase 4 — DSA problem bank
+
+### Is the test data correct?
+
+Wrong expected values fail a candidate's *correct* solution — the worst bug
+this product can ship. "The author checked it" is not evidence, so the data
+is verified by execution, twice over:
+
+1. **In-repo harness** (`src/dsa/problems.verify.test.ts`, runs in
+   `npm test`, no network): reference solutions for all 30 problems, plus
+   independent brute-force cross-checks for the 14 subtlest — written from
+   the *statement* rather than the fast algorithm, so a shared conceptual
+   error can't pass both. **77/77 passed.**
+2. **Independent model-written references** (`scripts/validate-problems.mjs`):
+   a model writes a solution from each statement alone, never seeing expected
+   outputs, and it is executed against our data. **6/30 verified** before the
+   API quota ran out (below). The in-repo harness is therefore the primary
+   durable check; this script is a second opinion when quota allows.
+
+Structural checks pass: 30 unique ids; topics 6/5/5/5/4/5 across
+arrays-strings, hashing, two-pointers, trees, graphs, dp; difficulty
+10 easy / 14 medium / 6 hard; ≥6 test cases with exactly 2 samples each.
+
+### The bug this caught
+
+The bank encodes tree inputs as **level-order arrays**, but tree signatures
+promise a **`TreeNode`**. The runner spread `input` straight into the
+candidate's function — so every `trees` problem would have handed a raw array
+to code expecting nodes, thrown on every case, and reported a **correct
+solution as 0/n**. Exactly the failure mode the rest of this file is about.
+
+Fixed: `treeArgPositions()` reads TreeNode positions from the Python
+signature (the only one carrying annotations; argument order matches across
+languages), and `buildDriver` emits a `TreeNode` class plus a level-order
+builder and materialises those positions before calling. The prelude also
+supplies the `typing` imports the signatures use — without them the
+candidate's own annotation raises `NameError` before their code runs.
+
+Guarded by `src/dsa/driver.integration.test.ts`, which runs a real recursive
+solution through **real Python and real Node** against level-order arrays
+including `[]`, single-node, and both spines. String-asserting the driver
+would not have caught this: the generated Python looked perfectly valid.
+
+### Finding: the free tier cannot run one interview
+
+Validation exhausted the key: `429 ... generate_content_free_tier_requests`.
+Not transient — the daily allowance was gone.
+
+This matters commercially. One session makes an assessment call per answer
+(20-40), plus a resume parse, plus a report generation. **A BYOK customer on
+a free key will stall mid-interview.**
+
+Two changes followed:
+- A 429 is now split by meaning. A rate limit backs off and retries; a spent
+  quota throws `QuotaExhaustedError` immediately with a plain instruction,
+  and does **not** walk the model fallback chain — quota is per key, so
+  another model cannot help. Retrying into a wall wastes the user's time and
+  hides an error only they can fix.
+- [REQUIREMENTS.md](REQUIREMENTS.md) now states billing is required, and
+  onboarding must say so before a user starts an interview they can't finish.

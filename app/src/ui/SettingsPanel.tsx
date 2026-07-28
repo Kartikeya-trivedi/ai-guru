@@ -18,7 +18,7 @@ const PROVIDERS: {
     id: "gemini",
     name: "Google Gemini",
     role: "Realtime voice interviewer, resume parsing, grading, reports",
-    where: "aistudio.google.com → Get API key",
+    where: "aistudio.google.com → Get API key · enable billing",
     required: true,
   },
   {
@@ -116,6 +116,14 @@ export function SettingsPanel({ onBack }: { onBack: () => void }) {
             your audio, and never meter you. Keys are stored in your operating system's credential
             manager, not in this app's database.
           </p>
+        </div>
+
+        {/* Better they learn this here than 20 minutes into an interview. */}
+        <div className="notice info reveal">
+          <strong>Your Gemini key needs billing enabled.</strong> An interview makes a grading call
+          for every answer you give, plus the resume parse and the final report — comfortably past
+          the free tier's daily limit. A free key will stop partway through. Usage is typically
+          cents per interview.
         </div>
 
         {!inDesktopApp() && (

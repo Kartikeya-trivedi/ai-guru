@@ -1,5 +1,12 @@
 import { invoke } from "@tauri-apps/api/core";
-import { buildDriver, canExecute, parseOutcome, type Language, type RunOutcome } from "./harness";
+import {
+  buildDriver,
+  canExecute,
+  parseOutcome,
+  treeArgPositions,
+  type Language,
+  type RunOutcome,
+} from "./harness";
 import type { Problem } from "./problems";
 
 interface RawExecResult {
@@ -32,7 +39,11 @@ export async function runSolution(
   }
 
   const fnName = functionNameFrom(problem.signatures[language]);
-  const driver = buildDriver(language, fnName, source);
+  // Tree positions come from the Python signature — the only one with type
+  // annotations — and apply to every language, since arg order matches.
+  const driver = buildDriver(language, fnName, source, {
+    treeArgs: treeArgPositions(problem.signatures.python),
+  });
   const stdin = JSON.stringify(problem.testCases.map((c) => ({ input: c.input })));
 
   const raw = await invoke<RawExecResult>("run_code", {
