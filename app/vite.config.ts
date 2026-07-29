@@ -5,13 +5,23 @@ import react from "@vitejs/plugin-react";
 const host = process.env.TAURI_DEV_HOST;
 
 // https://vite.dev/config/
-export default defineConfig(async () => ({
+export default defineConfig(async ({ command }) => ({
   plugins: [react()],
 
-  // Dev-only: exposes GEMINI_API_KEY from app/.env to the client so the
-  // voice spike can run without settings UI. Shipping builds read keys from
-  // the OS keychain via Tauri instead — never bundled.
-  envPrefix: ["VITE_", "GEMINI_", "XAI_", "ELEVENLABS_"],
+  /**
+   * Key prefixes are exposed to the DEV SERVER ONLY.
+   *
+   * `vite build` inlines matching env vars into the bundle as string
+   * literals, so listing them here unconditionally baked the developer's own
+   * GEMINI_API_KEY into `dist/` — and from there into the shipped installer,
+   * handing every customer a working key billed to us. Verified by scanning
+   * a real release build; guarded now by scripts/check-bundle-secrets.mjs,
+   * which runs as part of `npm run build`.
+   *
+   * Packaged builds have no env fallback by design: keys come from the OS
+   * keychain via Tauri (see src/providers/keys.ts).
+   */
+  envPrefix: command === "serve" ? ["VITE_", "GEMINI_", "XAI_", "ELEVENLABS_"] : ["VITE_"],
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
