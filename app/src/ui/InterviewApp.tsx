@@ -14,11 +14,11 @@ import { judgeSolution, type CodeVerdict } from "../dsa/judge";
 import type { Problem } from "../dsa/problems";
 import type { Language, RunOutcome } from "../dsa/harness";
 import type { ParsedResume } from "../resume/types";
-import type { JobTarget, StageDefinition, Thread } from "../engine/types";
+import type { CandidateModel, JobTarget, StageDefinition, Thread } from "../engine/types";
 import type { InterviewReport } from "../report/types";
 import "./theme.css";
 
-type View = "upload" | "parsing" | "brief" | "live" | "coding" | "generating" | "report" | "settings";
+type View = "upload" | "parsing" | "brief" | "live" | "coding" | "generating" | "report" | "report-failed" | "settings";
 
 const ROLES = ["AI Engineer", "Infra Engineer", "Cloud Engineer", "DevOps Engineer"];
 const SENIORITIES: JobTarget["seniority"][] = ["intern", "junior", "mid", "senior", "staff"];
@@ -26,6 +26,8 @@ const SENIORITIES: JobTarget["seniority"][] = ["intern", "junior", "mid", "senio
 export function InterviewApp() {
   const [view, setView] = useState<View>("upload");
   const [error, setError] = useState<string | null>(null);
+  /** Non-fatal, transient status (e.g. an assessment degraded). Not red. */
+  const [notice, setNotice] = useState<string | null>(null);
 
   const [resume, setResume] = useState<ParsedResume | null>(null);
   const [resumeId, setResumeId] = useState<string | null>(null);
@@ -47,6 +49,14 @@ export function InterviewApp() {
   const [codePhase, setCodePhase] = useState<"discuss" | "code">("discuss");
   const [verdict, setVerdict] = useState<CodeVerdict | null>(null);
   const [judging, setJudging] = useState(false);
+
+  /**
+   * The report's inputs, retained the moment the interview ends. Report
+   * generation is the largest, most failure-prone call in the app and comes
+   * after an hour of work — so its inputs must survive a failed attempt to
+   * make a retry possible. Without this, one network blip discards the hour.
+   */
+  const pendingReportRef = useRef<{ threads: Thread[]; candidateModel: CandidateModel } | null>(null);
 
   const sessionRef = useRef<InterviewSession | null>(null);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
@@ -94,6 +104,8 @@ export function InterviewApp() {
     setThreads([]);
     setReport(null);
     setError(null);
+    setNotice(null);
+    pendingReportRef.current = null;
     setView("live");
 
     let sid: string | null = null;
@@ -113,12 +125,18 @@ export function InterviewApp() {
         },
         onLatency: (s) => setP95(s.p95),
         onError: setError,
+        // Non-fatal: shown calmly, and an empty string clears it on recovery.
+        onNotice: (m) => setNotice(m || null),
         onTranscript: (r, text) =>
           setTranscript((prev) => {
             const last = prev[prev.length - 1];
             if (last?.role === r) return [...prev.slice(0, -1), { role: r, text: last.text + text }];
             return [...prev, { role: r, text }];
           }),
+        // Persist the transcript at turn boundaries so it survives teardown.
+        onTurnComplete: (r, text, stage) => {
+          if (sid) void db.saveTurn(sid, r, text, stage).catch(() => {});
+        },
       },
     );
     sessionRef.current = session;
@@ -130,6 +148,45 @@ export function InterviewApp() {
     }
   }, [resume, resumeId, role, seniority, jd, persistedDb]);
 
+  /**
+   * Generate the report from retained inputs. Separated from finish() so a
+   * failed attempt can be retried without a live session — the inputs are
+   * already captured; only the network call failed.
+   */
+  const produceReport = useCallback(async () => {
+    if (!resume) return;
+    const pending = pendingReportRef.current;
+    if (!pending) return;
+
+    setView("generating");
+    setError(null);
+    try {
+      const apiKey = (await getKey("gemini"))!;
+      const generated = await generateReport(
+        {
+          sessionId: sessionId ?? "local",
+          candidateName: resume.name,
+          jobTarget: { role, seniority, jobDescription: jd || undefined },
+          threads: pending.threads,
+          candidateModel: pending.candidateModel,
+          transcript,
+        },
+        { apiKey },
+      );
+      setReport(generated);
+      if (sessionId) {
+        await db.saveReport(generated).catch(() => {});
+        await db.endSession(sessionId).catch(() => {});
+      }
+      pendingReportRef.current = null;
+      setView("report");
+    } catch (e) {
+      // The interview is NOT lost — inputs are retained for retry.
+      setError(`Report generation failed: ${e instanceof Error ? e.message : String(e)}. Your interview is saved — retry below.`);
+      setView("report-failed");
+    }
+  }, [resume, sessionId, role, seniority, jd, transcript]);
+
   const finish = useCallback(async () => {
     const session = sessionRef.current;
     if (!session || !resume) return;
@@ -138,39 +195,21 @@ export function InterviewApp() {
     const candidateModel = session.getCandidateModel();
     session.stop();
     sessionRef.current = null;
+    if (sessionId) void db.endSession(sessionId).catch(() => {});
 
-    if (finalThreads.length === 0) {
-      // Nothing was assessed — a report here would be invented, not earned.
-      setError("Interview ended before any answers were assessed, so there's nothing to report on yet.");
+    // Gate on ASSESSMENTS, not thread count. A thread is created before its
+    // assessment call, so a session where every assessment failed still has
+    // threads — reporting on it would fabricate scores from no evidence.
+    const assessedThreads = finalThreads.filter((t) => t.assessments.length > 0);
+    if (assessedThreads.length === 0) {
+      setError("The interview ended before any answer could be assessed, so there's nothing to base a report on. This usually means the AI provider was unreachable — check your key and quota.");
       setView("brief");
       return;
     }
 
-    setView("generating");
-    try {
-      const apiKey = (await getKey("gemini"))!;
-      const generated = await generateReport(
-        {
-          sessionId: sessionId ?? "local",
-          candidateName: resume.name,
-          jobTarget: { role, seniority, jobDescription: jd || undefined },
-          threads: finalThreads,
-          candidateModel,
-          transcript,
-        },
-        { apiKey },
-      );
-      setReport(generated);
-      if (sessionId) {
-        await db.saveReport(generated);
-        await db.endSession(sessionId);
-      }
-      setView("report");
-    } catch (e) {
-      setError(`Report generation failed: ${e instanceof Error ? e.message : String(e)}`);
-      setView("brief");
-    }
-  }, [resume, sessionId, role, seniority, jd, transcript]);
+    pendingReportRef.current = { threads: assessedThreads, candidateModel };
+    await produceReport();
+  }, [resume, sessionId, produceReport]);
 
   const startCodingRound = useCallback(() => {
     const jobTarget: JobTarget = { role, seniority, jobDescription: jd || undefined };
@@ -224,7 +263,7 @@ export function InterviewApp() {
       <header className="topbar">
         <span className="brand">Interview<em>.</em></span>
 
-        {view === "live" && (
+        {(view === "live" || view === "coding") && (
           <>
             <div className="rail">
               {DEFAULT_STAGES.map((s, i) => (
@@ -251,7 +290,7 @@ export function InterviewApp() {
           </>
         )}
 
-        {view !== "live" && (
+        {view !== "live" && view !== "coding" && (
           <>
             <div className="spacer" />
             <button className="btn btn-ghost" onClick={() => setView(view === "settings" ? "upload" : "settings")}>
@@ -329,6 +368,26 @@ export function InterviewApp() {
 
         {view === "report" && report && resume && (
           <ReportView report={report} candidateName={resume.name} onBack={() => setView("brief")} />
+        )}
+
+        {view === "report-failed" && (
+          <div className="center">
+            <div className="stack" style={{ marginTop: 60 }}>
+              <span className="eyebrow">Report</span>
+              <h1 className="serif-title">That didn't go through.</h1>
+              {error && <div className="notice reveal">{error}</div>}
+              <p className="muted">
+                Your interview is safe — only the write-up call failed. Retrying doesn't repeat the
+                interview, just the evaluation.
+              </p>
+              <div style={{ display: "flex", gap: 10 }}>
+                <button className="btn btn-live" style={{ width: "auto" }} onClick={produceReport}>
+                  Retry report
+                </button>
+                <button className="btn btn-ghost" onClick={() => setView("brief")}>Back</button>
+              </div>
+            </div>
+          </div>
         )}
 
         {view === "brief" && resume && (
@@ -435,6 +494,7 @@ export function InterviewApp() {
                 End &amp; get report
               </button>
               {error && <div className="notice" style={{ marginTop: 12 }}>{error}</div>}
+              {notice && <div className="notice info" style={{ marginTop: 12 }}>{notice}</div>}
             </aside>
 
             <section>
@@ -454,6 +514,24 @@ export function InterviewApp() {
 
         {view === "coding" && problem && (
           <div style={{ display: "flex", flexDirection: "column", width: "100%", overflow: "hidden" }}>
+            <div style={{ display: "flex", gap: 10, alignItems: "center", padding: "10px 28px", borderBottom: "1px solid var(--line)" }}>
+              <button
+                className="btn btn-ghost"
+                onClick={() => {
+                  // The voice session is still live underneath — go back to talking.
+                  setProblem(null);
+                  setVerdict(null);
+                  setView("live");
+                }}
+              >
+                ← Back to interview
+              </button>
+              <div className="spacer" style={{ flex: 1 }} />
+              {notice && <span className="faint small">{notice}</span>}
+              {/* Without this, starting a coding round used to make the report
+                  permanently unreachable — finish() lived only in the live view. */}
+              <button className="btn" onClick={finish}>End &amp; get report</button>
+            </div>
             <CodingRound
               problem={problem}
               phase={codePhase}

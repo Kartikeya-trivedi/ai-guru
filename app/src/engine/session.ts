@@ -34,8 +34,20 @@ export interface SessionCallbacks {
   onStageChange(stage: StageDefinition): void;
   onThreadUpdate(threads: Thread[]): void;
   onLatency(summary: { count: number; p50: number | null; p95: number | null }): void;
+  /** A fatal problem — the interview cannot continue. */
   onError(message: string): void;
-  onStatus(status: "connecting" | "live" | "ended"): void;
+  /**
+   * A non-fatal, transient problem (e.g. one assessment failed). The
+   * interview continues; the UI should show this calmly and clear it on the
+   * next success, NOT render it like a fatal error.
+   */
+  onNotice(message: string): void;
+  onStatus(status: "connecting" | "live" | "ended" | "disconnected"): void;
+  /**
+   * A complete turn of the transcript, fired at exchange boundaries so it can
+   * be persisted. Off the audio path; the caller must not block on it.
+   */
+  onTurnComplete(role: "user" | "assistant", text: string, stage: StageId): void;
 }
 
 export interface SessionOptions {
@@ -48,7 +60,10 @@ export interface SessionOptions {
   timeScale?: number;
 }
 
-let threadSeq = 0;
+/** Collision-free across app restarts (a module counter is not — it resets). */
+function newThreadId(): string {
+  return crypto.randomUUID();
+}
 
 export class InterviewSession {
   private channel: RealtimeVoiceChannel | null = null;
@@ -71,10 +86,22 @@ export class InterviewSession {
     communicationNotes: [],
   };
 
-  /** Accumulating text for the exchange in flight. */
+  /** Accumulating text since the last turn boundary. */
   private userTurn = "";
   private assistantTurn = "";
-  private assessing = false;
+  /**
+   * The interviewer's PREVIOUS completed turn — i.e. the question the next
+   * candidate answer will address. Gemini fires turn-complete when the MODEL
+   * stops, so within one turn-complete window the buffers hold [answer to the
+   * prior question] + [the follow-up just asked]. Pairing them directly would
+   * grade every answer against the NEXT question. We carry the question across
+   * the boundary instead.
+   */
+  private pendingQuestion = "";
+  /** Exchanges awaiting assessment. Queued, never dropped — losing an answer
+   *  loses report evidence for a real person. */
+  private assessQueue: { question: string; answer: string }[] = [];
+  private draining = false;
 
   constructor(
     private opts: SessionOptions,
@@ -151,8 +178,9 @@ export class InterviewSession {
 
         case "turn-complete":
           this.tracker.endTurn();
-          // Fire and forget: assessment must never delay the conversation.
-          void this.onExchangeComplete();
+          // Rotate the buffers synchronously so the (question, answer) pair is
+          // captured correctly, then assess off the audio path.
+          this.onTurnComplete();
           break;
 
         case "error":
@@ -164,32 +192,60 @@ export class InterviewSession {
   }
 
   /**
-   * One question/answer exchange finished. Assess it off the critical path
-   * and steer the next turn.
+   * A model turn just completed. Runs synchronously on the audio thread, so
+   * it only rotates buffers and enqueues work — no awaiting here.
+   *
+   * Buffer rotation: the answer just given addresses `pendingQuestion` (the
+   * interviewer's PREVIOUS turn), and the turn that just finished becomes the
+   * next pending question. This is what keeps every assessment paired with the
+   * question it actually answered.
    */
-  private async onExchangeComplete(): Promise<void> {
+  private onTurnComplete(): void {
     const answer = this.userTurn.trim();
-    const question = this.assistantTurn.trim();
+    const question = this.pendingQuestion;
+    this.pendingQuestion = this.assistantTurn.trim();
+
+    if (answer) this.cb.onTurnComplete("user", answer, this.stage.id);
+    if (this.pendingQuestion) this.cb.onTurnComplete("assistant", this.pendingQuestion, this.stage.id);
+
     this.userTurn = "";
     this.assistantTurn = "";
 
-    // The opening greeting has no candidate answer to assess.
-    if (!answer || this.assessing) return;
-    this.assessing = true;
+    // No answer (the opening greeting), or no question yet — nothing to grade.
+    if (!answer || !question) return;
 
+    // Queue rather than drop. A slow assessment must delay steering, never
+    // delete an answer — that answer is a real person's report evidence.
+    this.assessQueue.push({ question, answer });
+    void this.drainAssessments();
+  }
+
+  /** Process queued exchanges one at a time, off the audio path. */
+  private async drainAssessments(): Promise<void> {
+    if (this.draining) return;
+    this.draining = true;
     try {
-      const thread = this.ensureThread(question);
+      let item: { question: string; answer: string } | undefined;
+      while ((item = this.assessQueue.shift())) {
+        await this.assessExchange(item.question, item.answer);
+      }
+    } finally {
+      this.draining = false;
+    }
+  }
+
+  private async assessExchange(question: string, answer: string): Promise<void> {
+    const thread = this.ensureThread(question);
+    try {
       const assessment = await assessAnswer(
         { topic: thread.topic, question, answer, depth: thread.depth },
         { apiKey: this.opts.apiKey },
       );
 
-      thread.assessments.push(assessment);
-      thread.depth += 1;
-      thread.exhausted = assessment.atKnowledgeLimit;
-      this.absorbIntoCandidateModel(assessment);
-      this.cb.onThreadUpdate(this.getThreads());
-
+      // Decide BEFORE recording this assessment. depth.ts inspects
+      // thread.assessments (its slice(-1) lookback) and thread.depth as the
+      // state PRIOR to this answer — pushing first makes the gentle-reprobe
+      // branch unreachable and adds a phantom depth layer.
       const move = decideNextMove({
         thread,
         assessment,
@@ -197,6 +253,14 @@ export class InterviewSession {
         topicsRemaining: this.topicQueue.length,
         stageBudgetSpent: this.stageBudgetSpent(),
       });
+
+      thread.assessments.push(assessment);
+      thread.depth += 1;
+      thread.exhausted = assessment.atKnowledgeLimit;
+      this.absorbIntoCandidateModel(assessment);
+      this.cb.onThreadUpdate(this.getThreads());
+      // A recovered assessment clears any lingering transient notice.
+      this.cb.onNotice("");
 
       switch (move.kind) {
         case "drill":
@@ -223,10 +287,8 @@ export class InterviewSession {
       }
     } catch (e) {
       // A failed assessment costs steering for one turn — the interview
-      // continues regardless. Never surface this as a fatal error.
-      this.cb.onError(`assessment skipped: ${e instanceof Error ? e.message : String(e)}`);
-    } finally {
-      this.assessing = false;
+      // continues. Surface it as a NON-fatal notice, never a fatal error.
+      this.cb.onNotice(`Assessment degraded — the interviewer's steering may lag. (${e instanceof Error ? e.message : String(e)})`);
     }
   }
 
@@ -234,7 +296,7 @@ export class InterviewSession {
     if (this.currentThread && !this.currentThread.exhausted) return this.currentThread;
     const topic = this.topicQueue[0] ?? `${this.stage.id}: ${question.slice(0, 60)}`;
     const thread: Thread = {
-      id: `t${++threadSeq}`,
+      id: newThreadId(),
       stage: this.stage.id,
       topic,
       depth: 0,

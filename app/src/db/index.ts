@@ -162,10 +162,14 @@ export async function saveThreads(sessionId: string, threads: Thread[]): Promise
   const d = await getDb();
   for (const t of threads) {
     // Threads mutate as the interview drills, so upsert rather than insert.
+    // Thread ids are UUIDs (collision-free across runs), but the WHERE guard
+    // is defence in depth: even a colliding id can never overwrite a row that
+    // belongs to a DIFFERENT session — the UPDATE simply no-ops.
     await d.execute(
       `INSERT INTO threads (id, session_id, stage, topic, depth, exhausted, assessments_json)
        VALUES ($1,$2,$3,$4,$5,$6,$7)
-       ON CONFLICT(id) DO UPDATE SET depth = $5, exhausted = $6, assessments_json = $7`,
+       ON CONFLICT(id) DO UPDATE SET depth = $5, exhausted = $6, assessments_json = $7
+       WHERE threads.session_id = $2`,
       [t.id, sessionId, t.stage, t.topic, t.depth, t.exhausted ? 1 : 0, JSON.stringify(t.assessments)],
     );
   }
