@@ -164,10 +164,14 @@ for _i, _c in enumerate(_cases):
     try:
         _args = [_build_tree(_v) if _p in _TREE_ARGS else _v for _p, _v in enumerate(_c["input"])]
         _r = ${fnName}(*_args)
-        _out.append({"index": _i, "value": _r, "ms": (time.perf_counter() - _t0) * 1000})
+        # Serialise per case with allow_nan=False. A single inf/NaN return (a
+        # forgotten sentinel) otherwise makes json.dumps of the whole list emit
+        # bare Infinity — invalid JSON that voids EVERY passing case, not just
+        # the offending one.
+        _out.append(json.dumps({"index": _i, "value": _r, "ms": (time.perf_counter() - _t0) * 1000}, allow_nan=False))
     except Exception as _e:
-        _out.append({"index": _i, "error": f"{type(_e).__name__}: {_e}"})
-print("___RESULTS___" + json.dumps(_out))`;
+        _out.append(json.dumps({"index": _i, "error": f"{type(_e).__name__}: {_e}"}))
+print("___RESULTS___[" + ",".join(_out) + "]")`;
 
     case "javascript":
       return `${head}
@@ -175,20 +179,27 @@ ${source}
 
 // --- harness ---
 const _TREE_ARGS = ${JSON.stringify(treeArgs)};
+// Throw on non-finite numbers (incl. nested) so a stray Infinity/NaN becomes
+// that case's error rather than being silently coerced to null and mis-graded.
+const _safe = (obj) =>
+  JSON.stringify(obj, (_k, v) => {
+    if (typeof v === "number" && !Number.isFinite(v)) throw new RangeError("non-finite result: " + v);
+    return v;
+  });
 const _chunks = [];
 process.stdin.on("data", (c) => _chunks.push(c));
 process.stdin.on("end", () => {
   const cases = JSON.parse(Buffer.concat(_chunks).toString());
-  const out = cases.map((c, i) => {
+  const parts = cases.map((c, i) => {
     const t0 = performance.now();
     try {
       const args = c.input.map((v, p) => (_TREE_ARGS.includes(p) ? _buildTree(v) : v));
-      return { index: i, value: ${fnName}(...args), ms: performance.now() - t0 };
+      return _safe({ index: i, value: ${fnName}(...args), ms: performance.now() - t0 });
     } catch (e) {
-      return { index: i, error: String(e && e.message ? e.message : e) };
+      return JSON.stringify({ index: i, error: String(e && e.message ? e.message : e) });
     }
   });
-  process.stdout.write("___RESULTS___" + JSON.stringify(out));
+  process.stdout.write("___RESULTS___[" + parts.join(",") + "]");
 });`;
 
     default:

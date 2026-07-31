@@ -47,16 +47,40 @@ fn workdir() -> Result<PathBuf, String> {
     Ok(dir)
 }
 
-fn truncate(mut s: String) -> String {
-    if s.len() > MAX_OUTPUT {
-        s.truncate(MAX_OUTPUT);
+fn missing_toolchain(err: &std::io::Error) -> bool {
+    err.kind() == std::io::ErrorKind::NotFound
+}
+
+/// Read a pipe to EOF, keeping at most MAX_OUTPUT bytes but continuing to
+/// drain the rest. Draining is the point: if we stopped reading at the cap,
+/// a chatty child would block on a full pipe and never exit — the exact
+/// deadlock that made correct-but-verbose solutions report as timeouts.
+fn read_capped<R: Read>(reader: &mut R) -> String {
+    let mut kept: Vec<u8> = Vec::new();
+    let mut chunk = [0u8; 8192];
+    let mut truncated = false;
+    loop {
+        match reader.read(&mut chunk) {
+            Ok(0) => break,
+            Ok(n) => {
+                if kept.len() < MAX_OUTPUT {
+                    let take = (MAX_OUTPUT - kept.len()).min(n);
+                    kept.extend_from_slice(&chunk[..take]);
+                    if take < n {
+                        truncated = true;
+                    }
+                } else {
+                    truncated = true; // keep draining, discard
+                }
+            }
+            Err(_) => break,
+        }
+    }
+    let mut s = String::from_utf8_lossy(&kept).into_owned();
+    if truncated {
         s.push_str("\n…output truncated…");
     }
     s
-}
-
-fn missing_toolchain(err: &std::io::Error) -> bool {
-    err.kind() == std::io::ErrorKind::NotFound
 }
 
 /// Run one command with a wall-clock timeout, feeding `stdin_data`.
@@ -86,12 +110,29 @@ fn run_with_timeout(
         Err(e) => return Err(format!("spawn failed: {e}")),
     };
 
+    // Feed stdin from its own thread. A solution that ignores stdin, or a
+    // large payload, must not block us before we start draining stdout.
     if let Some(mut stdin) = child.stdin.take() {
         use std::io::Write;
-        // A solution that never reads stdin closes the pipe early; that's a
-        // broken pipe, not an error worth failing the run over.
-        let _ = stdin.write_all(stdin_data.as_bytes());
+        let data = stdin_data.to_owned();
+        std::thread::spawn(move || {
+            let _ = stdin.write_all(data.as_bytes());
+            // Drop closes the pipe so a reader on the child side sees EOF.
+        });
     }
+
+    // Drain stdout/stderr CONCURRENTLY with the wait. Reading only after the
+    // child exits deadlocks: a child that fills the ~64KB OS pipe buffer
+    // blocks on write, never exits, and trips the timeout — reporting a
+    // correct solution as an infinite loop.
+    let stdout_reader = child
+        .stdout
+        .take()
+        .map(|mut out| std::thread::spawn(move || read_capped(&mut out)));
+    let stderr_reader = child
+        .stderr
+        .take()
+        .map(|mut err| std::thread::spawn(move || read_capped(&mut err)));
 
     let status = child
         .wait_timeout(timeout)
@@ -107,18 +148,18 @@ fn run_with_timeout(
         }
     };
 
-    let mut stdout = String::new();
-    let mut stderr = String::new();
-    if let Some(mut out) = child.stdout.take() {
-        let _ = out.read_to_string(&mut stdout);
-    }
-    if let Some(mut err) = child.stderr.take() {
-        let _ = err.read_to_string(&mut stderr);
-    }
+    // Join the readers — after a kill they see EOF and return promptly.
+    let stdout = stdout_reader
+        .map(|h| h.join().unwrap_or_default())
+        .unwrap_or_default();
+    let stderr = stderr_reader
+        .map(|h| h.join().unwrap_or_default())
+        .unwrap_or_default();
 
     Ok(ExecResult {
-        stdout: truncate(stdout),
-        stderr: truncate(stderr),
+        // read_capped already bounds and marks these.
+        stdout,
+        stderr,
         exit_code,
         timed_out,
         duration_ms: started.elapsed().as_millis() as u64,
@@ -213,12 +254,18 @@ pub fn available_languages() -> Vec<String> {
     probes
         .iter()
         .filter(|(_, exe, arg)| {
+            // Require a SUCCESSFUL exit, not merely a spawn. On stock Windows,
+            // %LOCALAPPDATA%\Microsoft\WindowsApps holds 0-byte python.exe
+            // "App Execution Alias" stubs that spawn fine and exit 9009. With
+            // `.is_ok()` that reported Python as installed, unlocked Run, and
+            // then blamed the candidate's code for the empty output.
             Command::new(exe)
                 .arg(arg)
                 .stdout(Stdio::null())
                 .stderr(Stdio::null())
                 .status()
-                .is_ok()
+                .map(|s| s.success())
+                .unwrap_or(false)
         })
         .map(|(name, _, _)| name.to_string())
         .collect()

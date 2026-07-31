@@ -44,7 +44,10 @@ export function CodingRound({
 }) {
   const [language, setLanguage] = useState<Language>("python");
   const [source, setSource] = useState("");
-  const [outcome, setOutcome] = useState<RunOutcome | null>(null);
+  // Bind the run result to the exact source+language that produced it. Any
+  // later edit makes it stale — submitting stale results would hand the judge
+  // and the interviewer a verdict about code the candidate no longer has.
+  const [run, setRun] = useState<{ source: string; language: Language; result: RunOutcome } | null>(null);
   const [running, setRunning] = useState(false);
   const [installed, setInstalled] = useState<Language[] | null>(null);
 
@@ -55,8 +58,12 @@ export function CodingRound({
 
   useEffect(() => {
     setSource(problem.signatures[language]);
-    setOutcome(null);
+    setRun(null);
   }, [problem, language]);
+
+  // Only fresh if it matches what's in the editor right now.
+  const outcome = run && run.source === source && run.language === language ? run.result : null;
+  const staleRun = run !== null && outcome === null;
 
   const samples = useMemo(() => problem.testCases.filter((c) => c.sample), [problem]);
 
@@ -69,19 +76,27 @@ export function CodingRound({
         ? `${LABELS[language]} isn't installed on this machine.`
         : null;
 
-  const run = async () => {
+  const runTests = async () => {
     setRunning(true);
+    // Capture the exact source this run judges, so a later edit invalidates it.
+    const ranSource = source;
+    const ranLanguage = language;
     try {
-      setOutcome(await runSolution(problem, language, source));
+      const result = await runSolution(problem, ranLanguage, ranSource);
+      setRun({ source: ranSource, language: ranLanguage, result });
     } catch (e) {
-      setOutcome({
-        results: [],
-        passed: 0,
-        total: problem.testCases.length,
-        compileError: e instanceof Error ? e.message : String(e),
-        timedOut: false,
-        runtimeMissing: false,
-        raw: { stdout: "", stderr: "" },
+      setRun({
+        source: ranSource,
+        language: ranLanguage,
+        result: {
+          results: [],
+          passed: 0,
+          total: problem.testCases.length,
+          compileError: e instanceof Error ? e.message : String(e),
+          timedOut: false,
+          runtimeMissing: false,
+          raw: { stdout: "", stderr: "" },
+        },
       });
     } finally {
       setRunning(false);
@@ -149,13 +164,16 @@ export function CodingRound({
                   <option key={l} value={l}>{LABELS[l]}</option>
                 ))}
               </select>
-              <button className="btn" disabled={!runnable || running} onClick={run}>
+              <button className="btn" disabled={!runnable || running} onClick={runTests}>
                 {running ? <span className="spinner" /> : "Run tests"}
               </button>
               <div className="spacer" style={{ flex: 1 }} />
               <button
                 className="btn btn-live"
                 style={{ width: "auto" }}
+                // Pass only a FRESH outcome. If the code changed since the last
+                // run, submit with no results so the judge treats it as
+                // unexecuted rather than trusting a stale verdict.
                 onClick={() => onSubmit(language, source, outcome ?? undefined)}
               >
                 Submit
@@ -164,6 +182,13 @@ export function CodingRound({
 
             {runBlockedReason && (
               <div className="notice info" style={{ marginBottom: 12 }}>{runBlockedReason}</div>
+            )}
+
+            {staleRun && (
+              <div className="notice info" style={{ marginBottom: 12 }}>
+                You've edited the code since the last run. Re-run before submitting, or submit and your
+                interviewer will review it by reading rather than test results.
+              </div>
             )}
 
             <div style={{ border: "1px solid var(--line)", borderRadius: 4, overflow: "hidden" }}>

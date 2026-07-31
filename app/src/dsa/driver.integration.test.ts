@@ -112,6 +112,22 @@ describe.skipIf(!hasPython)("python driver (real interpreter)", () => {
     expect(out.passed).toBe(1);
     expect(out.results[1].error).toContain("ValueError");
   });
+
+  it("a single inf/NaN return does not void the other passing cases", () => {
+    // The forgotten -1 sentinel: returns float('inf') on the unreachable case.
+    // Previously json.dumps emitted bare Infinity and the WHOLE run failed to
+    // parse, reporting 0/N for a nearly-correct solution.
+    const solution = `def f(n: int) -> int:
+    return n if n > 0 else float('inf')`;
+    const cases: TestCase[] = [
+      { input: [5], expected: 5 },
+      { input: [0], expected: -1 },
+      { input: [7], expected: 7 },
+    ];
+    const out = execute("python", "s.py", buildDriver("python", "f", solution), cases);
+    expect(out.passed).toBe(2); // the two finite cases still count
+    expect(out.results[1].error).toBeTruthy(); // the inf case is scoped to itself
+  });
 });
 
 describe.skipIf(!hasNode)("javascript driver (real interpreter)", () => {
@@ -131,5 +147,20 @@ describe.skipIf(!hasNode)("javascript driver (real interpreter)", () => {
     const cases: TestCase[] = [{ input: [[1, 2, 3], 2], expected: 12 }];
     const out = execute("node", "s.mjs", buildDriver("javascript", "addAll", solution), cases);
     expect(out.passed).toBe(1);
+  });
+
+  it("a single Infinity return does not silently coerce to null and void the run", () => {
+    // JSON.stringify(Infinity) is null; without the finite guard the case
+    // would read as "got null" instead of a clear error, and could even
+    // falsely pass against an expected null.
+    const solution = `function f(n) { return n > 0 ? n : Infinity; }`;
+    const cases: TestCase[] = [
+      { input: [5], expected: 5 },
+      { input: [0], expected: -1 },
+      { input: [7], expected: 7 },
+    ];
+    const out = execute("node", "s.mjs", buildDriver("javascript", "f", solution), cases);
+    expect(out.passed).toBe(2);
+    expect(out.results[1].error).toBeTruthy();
   });
 });
