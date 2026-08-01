@@ -103,6 +103,9 @@ export function openGeminiLive(
   ws.binaryType = "arraybuffer";
 
   const queue = new EventQueue<VoiceEvent>();
+  // Distinguishes a user-ended session (channel.close()) from a network drop,
+  // so the latter surfaces as an error instead of a silent "ended".
+  let intentionalClose = false;
 
   return new Promise((resolve, reject) => {
     let settled = false;
@@ -128,6 +131,12 @@ export function openGeminiLive(
           // the candidate model, and the final report.
           inputAudioTranscription: {},
           outputAudioTranscription: {},
+          // The interview budgets a full hour, but Gemini Live caps audio-only
+          // sessions unless a sliding context window is enabled — without this
+          // the socket closes mid-sentence around the cap. Compression evicts
+          // oldest turns first, which is exactly why the candidate model is
+          // re-injected at stage boundaries rather than relying on raw history.
+          contextWindowCompression: { slidingWindow: {} },
         },
       };
       ws.send(JSON.stringify(setup));
@@ -148,6 +157,11 @@ export function openGeminiLive(
         settled = true;
         reject(new Error(`Gemini Live closed before setup: ${ev.code} ${ev.reason}`));
         return;
+      }
+      // A drop mid-interview must not look identical to a clean end — the
+      // candidate could otherwise keep talking into a dead socket.
+      if (!intentionalClose) {
+        queue.push({ type: "error", message: `connection lost (${ev.code}${ev.reason ? ` ${ev.reason}` : ""})` });
       }
       queue.close();
     };
@@ -254,6 +268,7 @@ export function openGeminiLive(
       events: () => queue.iterable(),
 
       close(): void {
+        intentionalClose = true;
         queue.close();
         if (
           ws.readyState === WebSocket.OPEN ||

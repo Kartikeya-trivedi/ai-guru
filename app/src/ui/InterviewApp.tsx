@@ -9,6 +9,7 @@ import * as db from "../db";
 import { ReportView } from "./ReportView";
 import { SettingsPanel } from "./SettingsPanel";
 import { CodingRound } from "./CodingRound";
+import { extractRequirements } from "../engine/jd";
 import { pickProblem } from "../dsa/select";
 import { judgeSolution, type CodeVerdict } from "../dsa/judge";
 import type { Problem } from "../dsa/problems";
@@ -107,6 +108,17 @@ export function InterviewApp() {
     setNotice(null);
     pendingReportRef.current = null;
     setView("live");
+
+    // Turn the pasted JD into concrete areas to probe so the technical round
+    // actually targets this job. One pre-interview call, off the voice path;
+    // a failure here just means generic (skills-based) technical questions.
+    if (jd.trim()) {
+      try {
+        jobTarget.extractedRequirements = await extractRequirements(jd, { apiKey });
+      } catch {
+        /* non-fatal — fall back to resume skills */
+      }
+    }
 
     let sid: string | null = null;
     if (persistedDb && resumeId) {

@@ -47,6 +47,8 @@ export interface MicCapture {
 export async function startMicCapture(
   sampleRate: number,
   onFrame: (pcm16: ArrayBuffer) => void,
+  /** Fired if the input device is lost mid-capture (e.g. a headset drops). */
+  onLost?: () => void,
 ): Promise<MicCapture> {
   const stream = await navigator.mediaDevices.getUserMedia({
     audio: {
@@ -58,7 +60,7 @@ export async function startMicCapture(
       autoGainControl: true,
     },
   });
-  return startCaptureFromStream(stream, sampleRate, onFrame);
+  return startCaptureFromStream(stream, sampleRate, onFrame, onLost);
 }
 
 /**
@@ -70,8 +72,23 @@ export async function startCaptureFromStream(
   stream: MediaStream,
   sampleRate: number,
   onFrame: (pcm16: ArrayBuffer) => void,
+  onLost?: () => void,
 ): Promise<MicCapture> {
   const ctx = new AudioContext({ sampleRate });
+
+  // A track that ends or mutes means the device is gone. Without this, losing
+  // a headset mid-interview produces no error and the session appears live
+  // while nothing is captured.
+  let lost = false;
+  const fireLost = () => {
+    if (lost) return;
+    lost = true;
+    onLost?.();
+  };
+  for (const track of stream.getAudioTracks()) {
+    track.addEventListener("ended", fireLost);
+    track.addEventListener("mute", fireLost);
+  }
   const blob = new Blob([WORKLET_SOURCE], { type: "application/javascript" });
   const blobUrl = URL.createObjectURL(blob);
   try {

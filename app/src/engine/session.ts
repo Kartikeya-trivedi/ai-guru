@@ -65,6 +65,21 @@ function newThreadId(): string {
   return crypto.randomUUID();
 }
 
+/** Turn a raw getUserMedia/WebSocket failure into something a candidate can act on. */
+function translateStartError(e: unknown): Error {
+  const name = e instanceof DOMException ? e.name : "";
+  if (name === "NotAllowedError" || name === "SecurityError") {
+    return new Error("This interview needs your microphone. Allow mic access in your browser or system settings, then try again.");
+  }
+  if (name === "NotFoundError" || name === "OverconstrainedError") {
+    return new Error("No microphone was found. Plug one in (a headset is best) and try again.");
+  }
+  if (name === "NotReadableError") {
+    return new Error("Your microphone is in use by another app. Close it and try again.");
+  }
+  return e instanceof Error ? e : new Error(String(e));
+}
+
 export class InterviewSession {
   private channel: RealtimeVoiceChannel | null = null;
   private mic: MicCapture | null = null;
@@ -102,6 +117,8 @@ export class InterviewSession {
    *  loses report evidence for a real person. */
   private assessQueue: { question: string; answer: string }[] = [];
   private draining = false;
+  /** Set by stop(), so an event-loop exit can tell a clean end from a drop. */
+  private stopped = false;
 
   constructor(
     private opts: SessionOptions,
@@ -134,17 +151,34 @@ export class InterviewSession {
       `Open the interview now: greet ${this.opts.resume.name.split(" ")[0]} warmly by name and ask them to introduce themselves. Keep it to one or two sentences.`,
     ].join("\n\n");
 
-    this.sink = createAudioSink();
-    this.channel = await openGeminiLive({
-      apiKey: this.opts.apiKey,
-      model: LIVE_MODEL,
-      voiceName: "Charon",
-      systemInstruction: system,
-    });
+    // Acquire the microphone FIRST — it's the cheapest, most-likely-to-fail
+    // resource, and there's no reason to open a billed Live session before we
+    // know the candidate can actually speak. On any failure, release
+    // everything so a denied mic can't leak an open WebSocket + AudioContext.
+    try {
+      this.mic = await startMicCapture(
+        GEMINI_INPUT_SAMPLE_RATE,
+        (frame) => this.channel?.sendAudio(frame),
+        () => {
+          // The input device vanished mid-interview (e.g. a Bluetooth headset
+          // dropped). The socket is still open, so this is recoverable, but
+          // the UI must not keep claiming "ON AIR" while deaf.
+          this.cb.onStatus("disconnected");
+          this.cb.onError("Microphone disconnected — reconnect it and restart the interview.");
+        },
+      );
 
-    this.mic = await startMicCapture(GEMINI_INPUT_SAMPLE_RATE, (frame) =>
-      this.channel?.sendAudio(frame),
-    );
+      this.sink = createAudioSink();
+      this.channel = await openGeminiLive({
+        apiKey: this.opts.apiKey,
+        model: LIVE_MODEL,
+        voiceName: "Charon",
+        systemInstruction: system,
+      });
+    } catch (e) {
+      this.stop();
+      throw translateStartError(e);
+    }
 
     this.stageStartedAt = performance.now();
     this.cb.onStatus("live");
@@ -184,11 +218,23 @@ export class InterviewSession {
           break;
 
         case "error":
+          // A dropped connection is fatal to the live session: stop capturing
+          // so the candidate isn't talking into nothing, and flag it clearly.
           this.cb.onError(ev.message);
+          if (/connection lost/i.test(ev.message)) {
+            this.mic?.stop();
+            this.mic = null;
+            this.cb.onStatus("disconnected");
+          }
           break;
       }
     }
-    this.cb.onStatus("ended");
+    // If the loop ended without an explicit stop(), the channel dropped.
+    this.cb.onStatus(this.stopped ? "ended" : "disconnected");
+    if (!this.stopped) {
+      this.mic?.stop();
+      this.mic = null;
+    }
   }
 
   /**
@@ -425,6 +471,7 @@ Walk through it with them: complexity, edge cases, what would break. Reason abou
   }
 
   stop(): void {
+    this.stopped = true;
     this.mic?.stop();
     this.mic = null;
     this.sink?.close();
