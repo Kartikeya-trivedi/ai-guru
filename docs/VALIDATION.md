@@ -214,3 +214,54 @@ Two changes followed:
   hides an error only they can fix.
 - [REQUIREMENTS.md](REQUIREMENTS.md) now states billing is required, and
   onboarding must say so before a user starts an interview they can't finish.
+
+## Adversarial code review (28 confirmed findings)
+
+A multi-agent review swept the codebase across seven dimensions (session
+loop, promise fidelity, persistence, DSA judging, UX failure modes,
+security, test coverage). Each raised finding faced three independent
+skeptics with distinct lenses (correctness, already-handled, materiality);
+only findings a majority could not refute survived. 36 raised, **28
+survived**, deduped to ~20 distinct defects, all fixed. Highlights:
+
+**The packaged app's database was entirely dead.** The Tauri capability
+granted only `core`+`opener`; the ACL is deny-by-default, so `Database.load`
+and every query were denied in the shipped build. Dev never caught it
+because in-browser runs skip the DB path. This is why "validated in Chrome"
+is not "validated as shipped" — added `sql:*` permissions.
+
+**Every answer was graded against the *next* question.** Gemini fires
+turn-complete when the MODEL stops, so one accumulation window held [answer
+to Q1] + [the follow-up Q2]. The engine paired them directly — a technical
+answer read as "evasive" for dodging a question never asked, in writing, in
+the report. Fixed by carrying the question across the boundary; pinned by
+`session.test.ts`.
+
+**The one empathy branch was dead code.** The current assessment was
+recorded before the depth controller ran, so its slice(-1) lookback saw the
+current answer and `probe-gently` could never fire — a struggling candidate
+was dropped instead of given the promised gentle re-ask. Fixed by deciding
+before recording.
+
+**A correct-but-chatty solution was reported as an infinite loop.** exec.rs
+read stdout only after the child exited, so output over the ~64KB pipe buffer
+deadlocked and tripped the timeout. Now drained concurrently.
+
+**A near-correct solution scored 0/N.** The Python driver serialised all
+results in one `json.dumps` (allow_nan=True) outside the per-case try; one
+`float('inf')` return emitted invalid JSON that voided every passing case.
+Now per-case with allow_nan=False.
+
+Also fixed: dropped answers when assessments ran long (now queued, never
+dropped); a report fabricated from threads with zero assessments; a coding
+round that made the report permanently unreachable; a failed report that
+discarded the whole hour with no retry; the transcript never persisted;
+thread-id collisions across restarts overwriting a prior interview;
+non-fatal assessment errors rendered as fatal; a silent WebSocket drop; a
+denied mic leaking a billed session; undetected mic device loss; the
+session-duration cap cutting off hour-long interviews; and JD-awareness that
+was promised but never implemented.
+
+Test count went 126 → 131, including the first tests over the orchestration
+loop (Q/A pairing, gentle re-probe, no-drop queue) and real-interpreter
+tests for the inf/NaN driver fix.
