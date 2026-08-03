@@ -35,3 +35,6 @@ coverage/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Local Claude Code tooling — not part of the product
+.claude/
