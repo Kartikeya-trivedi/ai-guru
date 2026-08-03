@@ -4,10 +4,11 @@ import { parseResume } from "../resume/parse";
 import { InterviewSession } from "../engine/session";
 import { generateReport } from "../report/generate";
 import { DEFAULT_STAGES } from "../engine/stages";
-import { getKey, inDesktopApp } from "../providers/keys";
+import { getKey, hasKey, inDesktopApp } from "../providers/keys";
 import * as db from "../db";
 import { ReportView } from "./ReportView";
 import { SettingsPanel } from "./SettingsPanel";
+import { KeyOnboarding } from "./KeyOnboarding";
 import { CodingRound } from "./CodingRound";
 import { extractRequirements } from "../engine/jd";
 import { pickProblem } from "../dsa/select";
@@ -19,13 +20,27 @@ import type { CandidateModel, JobTarget, StageDefinition, Thread } from "../engi
 import type { InterviewReport } from "../report/types";
 import "./theme.css";
 
-type View = "upload" | "parsing" | "brief" | "live" | "coding" | "generating" | "report" | "report-failed" | "settings";
+type View =
+  | "booting"
+  | "onboard"
+  | "upload"
+  | "parsing"
+  | "brief"
+  | "live"
+  | "coding"
+  | "generating"
+  | "report"
+  | "report-failed"
+  | "settings";
 
 const ROLES = ["AI Engineer", "Infra Engineer", "Cloud Engineer", "DevOps Engineer"];
 const SENIORITIES: JobTarget["seniority"][] = ["intern", "junior", "mid", "senior", "staff"];
 
 export function InterviewApp() {
-  const [view, setView] = useState<View>("upload");
+  // Start on a neutral boot state, then resolve to onboarding or upload once
+  // we know whether a key exists — avoids flashing the upload screen at a
+  // first-run user who has no key yet.
+  const [view, setView] = useState<View>("booting");
   const [error, setError] = useState<string | null>(null);
   /** Non-fatal, transient status (e.g. an assessment degraded). Not red. */
   const [notice, setNotice] = useState<string | null>(null);
@@ -67,11 +82,24 @@ export function InterviewApp() {
     transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [transcript]);
 
+  // First-run gate: the app is inert without a key, so put key entry in front
+  // rather than greeting a new user with an error on their first upload.
+  useEffect(() => {
+    let cancelled = false;
+    void hasKey("gemini").then((present) => {
+      if (!cancelled) setView(present ? "upload" : "onboard");
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const onFile = useCallback(async (file: File) => {
     setError(null);
     const apiKey = await getKey("gemini");
     if (!apiKey) {
-      setError("No Gemini key yet — add one in Settings.");
+      setError("Add your Gemini key to begin.");
+      setView("onboard");
       return;
     }
     setView("parsing");
@@ -98,7 +126,11 @@ export function InterviewApp() {
   const start = useCallback(async () => {
     if (!resume) return;
     const apiKey = await getKey("gemini");
-    if (!apiKey) return setError("No Gemini key yet — add one in Settings.");
+    if (!apiKey) {
+      setError("Add your Gemini key to begin.");
+      setView("onboard");
+      return;
+    }
 
     const jobTarget: JobTarget = { role, seniority, jobDescription: jd || undefined };
     setTranscript([]);
@@ -302,7 +334,9 @@ export function InterviewApp() {
           </>
         )}
 
-        {view !== "live" && view !== "coding" && (
+        {/* No Settings affordance before onboarding — the key screen IS the
+            settings surface at that point, and there's nowhere to go back to. */}
+        {view !== "live" && view !== "coding" && view !== "booting" && view !== "onboard" && (
           <>
             <div className="spacer" />
             <button className="btn btn-ghost" onClick={() => setView(view === "settings" ? "upload" : "settings")}>
@@ -313,6 +347,16 @@ export function InterviewApp() {
       </header>
 
       <main className="main">
+        {view === "booting" && (
+          <div className="center">
+            <div className="stack" style={{ marginTop: 60 }}>
+              <p className="muted"><span className="spinner" /> Starting up…</p>
+            </div>
+          </div>
+        )}
+
+        {view === "onboard" && <KeyOnboarding onReady={() => setView("upload")} />}
+
         {view === "settings" && <SettingsPanel onBack={() => setView(resume ? "brief" : "upload")} />}
 
         {view === "upload" && (
