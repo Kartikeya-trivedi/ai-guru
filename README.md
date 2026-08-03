@@ -38,15 +38,19 @@ validated in Chrome but not yet in the desktop shell.
 
 ## Running it
 
+Full instructions — prerequisites, keys, dev vs. desktop, building the
+installer, troubleshooting — are in [docs/SETUP.md](docs/SETUP.md). The short
+version:
+
 ```bash
 cd app
 npm install
-npm run tauri dev
+cp .env.example .env      # then set GEMINI_API_KEY (browser dev only)
+npm run tauri dev         # desktop app; enter the key in Settings
 ```
 
-Add a Gemini API key in Settings (get one at
-[aistudio.google.com](https://aistudio.google.com)). For browser-only dev,
-put `GEMINI_API_KEY=...` in `app/.env` instead.
+Get a Gemini key at [aistudio.google.com](https://aistudio.google.com) and
+**enable billing** — the free tier can't finish one interview.
 
 **Use headphones** — on speakers the interviewer hears itself and interrupts
 itself.
