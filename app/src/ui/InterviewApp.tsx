@@ -10,6 +10,9 @@ import { ReportView } from "./ReportView";
 import { SettingsPanel } from "./SettingsPanel";
 import { KeyOnboarding } from "./KeyOnboarding";
 import { CodingRound } from "./CodingRound";
+import { VideoStage } from "./VideoStage";
+import { screenCaptureSupported } from "../video/capture";
+import { describeIntegrity } from "../engine/proctor";
 import { extractRequirements } from "../engine/jd";
 import { pickProblem } from "../dsa/select";
 import { judgeSolution, type CodeVerdict } from "../dsa/judge";
@@ -61,6 +64,14 @@ export function InterviewApp() {
   const [report, setReport] = useState<InterviewReport | null>(null);
   const [dragging, setDragging] = useState(false);
 
+  /** Opt-in before the interview starts; the toggle during it lives on the stage. */
+  const [useCamera, setUseCamera] = useState(true);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const [screenStream, setScreenStream] = useState<MediaStream | null>(null);
+  /** Drives the interviewer presence animation — true while audio is arriving. */
+  const [speaking, setSpeaking] = useState(false);
+  const speakingTimer = useRef<number | null>(null);
+
   const [problem, setProblem] = useState<Problem | null>(null);
   const [codePhase, setCodePhase] = useState<"discuss" | "code">("discuss");
   const [verdict, setVerdict] = useState<CodeVerdict | null>(null);
@@ -72,7 +83,11 @@ export function InterviewApp() {
    * after an hour of work — so its inputs must survive a failed attempt to
    * make a retry possible. Without this, one network blip discards the hour.
    */
-  const pendingReportRef = useRef<{ threads: Thread[]; candidateModel: CandidateModel } | null>(null);
+  const pendingReportRef = useRef<{
+    threads: Thread[];
+    candidateModel: CandidateModel;
+    integrityNotes: string[] | null;
+  } | null>(null);
 
   const sessionRef = useRef<InterviewSession | null>(null);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
@@ -159,9 +174,13 @@ export function InterviewApp() {
     }
 
     const session = new InterviewSession(
-      { apiKey, resume, jobTarget },
+      { apiKey, resume, jobTarget, camera: useCamera },
       {
         onStatus: setStatus,
+        onVideoChange: (source, stream) => {
+          if (source === "camera") setCameraStream(stream);
+          else setScreenStream(stream);
+        },
         onStageChange: setStage,
         onThreadUpdate: (t) => {
           setThreads(t);
@@ -171,12 +190,21 @@ export function InterviewApp() {
         onError: setError,
         // Non-fatal: shown calmly, and an empty string clears it on recovery.
         onNotice: (m) => setNotice(m || null),
-        onTranscript: (r, text) =>
+        onTranscript: (r, text) => {
+          // Assistant transcript chunks are the only "is it talking right now"
+          // signal we get; a short idle timer turns the presence back off so it
+          // doesn't stay lit through the candidate's whole answer.
+          if (r === "assistant") {
+            setSpeaking(true);
+            if (speakingTimer.current) window.clearTimeout(speakingTimer.current);
+            speakingTimer.current = window.setTimeout(() => setSpeaking(false), 900);
+          }
           setTranscript((prev) => {
             const last = prev[prev.length - 1];
             if (last?.role === r) return [...prev.slice(0, -1), { role: r, text: last.text + text }];
             return [...prev, { role: r, text }];
-          }),
+          });
+        },
         // Persist the transcript at turn boundaries so it survives teardown.
         onTurnComplete: (r, text, stage) => {
           if (sid) void db.saveTurn(sid, r, text, stage).catch(() => {});
@@ -213,6 +241,7 @@ export function InterviewApp() {
           jobTarget: { role, seniority, jobDescription: jd || undefined },
           threads: pending.threads,
           candidateModel: pending.candidateModel,
+          integrityNotes: pending.integrityNotes,
           transcript,
         },
         { apiKey },
@@ -237,6 +266,8 @@ export function InterviewApp() {
 
     const finalThreads = session.getThreads();
     const candidateModel = session.getCandidateModel();
+    // Captured before stop(), which tears the monitor down.
+    const integrityNotes = describeIntegrity(session.getIntegrityEvents());
     session.stop();
     sessionRef.current = null;
     if (sessionId) void db.endSession(sessionId).catch(() => {});
@@ -251,9 +282,33 @@ export function InterviewApp() {
       return;
     }
 
-    pendingReportRef.current = { threads: assessedThreads, candidateModel };
+    pendingReportRef.current = { threads: assessedThreads, candidateModel, integrityNotes };
     await produceReport();
   }, [resume, sessionId, produceReport]);
+
+  const toggleCamera = useCallback(async () => {
+    const session = sessionRef.current;
+    if (!session) return;
+    try {
+      if (cameraStream) session.disableCamera();
+      else await session.enableCamera();
+    } catch (e) {
+      setNotice(e instanceof Error ? e.message : String(e));
+    }
+  }, [cameraStream]);
+
+  const toggleScreen = useCallback(async () => {
+    const session = sessionRef.current;
+    if (!session) return;
+    try {
+      if (screenStream) session.stopScreenShare();
+      else await session.startScreenShare();
+    } catch (e) {
+      // Cancelling the OS picker throws — that's a choice, not a failure, so
+      // it lands as a calm notice rather than a red error.
+      setNotice(e instanceof Error ? e.message : String(e));
+    }
+  }, [screenStream]);
 
   const startCodingRound = useCallback(() => {
     const jobTarget: JobTarget = { role, seniority, jobDescription: jd || undefined };
@@ -498,6 +553,28 @@ export function InterviewApp() {
                 </label>
               </div>
 
+              <div className="reveal panel">
+                <span className="eyebrow">Camera</span>
+                <label
+                  style={{ display: "flex", gap: 10, alignItems: "flex-start", marginTop: 10, cursor: "pointer" }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={useCamera}
+                    onChange={(e) => setUseCamera(e.target.checked)}
+                    style={{ width: "auto", marginTop: 3 }}
+                  />
+                  <span className="small">
+                    Interview on camera. Your interviewer can see you and reacts like a real one —
+                    which is also what makes it feel like a real interview.
+                    <span className="faint" style={{ display: "block", marginTop: 4 }}>
+                      Still frames go to Google's API under your own key, a few times a minute.
+                      Nothing is recorded or stored. You can turn it off at any point.
+                    </span>
+                  </span>
+                </label>
+              </div>
+
               <div className="reveal">
                 <button className="btn btn-live" onClick={start}>Begin interview</button>
                 <p className="faint small mono" style={{ marginTop: 10, textAlign: "center" }}>
@@ -554,6 +631,14 @@ export function InterviewApp() {
             </aside>
 
             <section>
+              <VideoStage
+                camera={cameraStream}
+                screen={screenStream}
+                speaking={speaking}
+                onToggleCamera={toggleCamera}
+                onToggleScreen={toggleScreen}
+                screenSupported={screenCaptureSupported()}
+              />
               {transcript.length === 0 && (
                 <p className="muted">Say hello when you're ready.</p>
               )}
@@ -593,6 +678,8 @@ export function InterviewApp() {
               phase={codePhase}
               onReadyToCode={readyToCode}
               onSubmit={submitCode}
+              sharingScreen={Boolean(screenStream)}
+              onShareScreen={screenCaptureSupported() ? toggleScreen : undefined}
             />
             {(judging || verdict) && (
               <div style={{ borderTop: "1px solid var(--line)", padding: "14px 28px", background: "var(--bg-raised)" }}>

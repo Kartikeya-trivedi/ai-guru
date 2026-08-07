@@ -40,10 +40,18 @@ export type VoiceEvent =
   | { type: "turn-complete" }
   | { type: "error"; message: string };
 
+/** Where a video frame came from — the model is told, so it can react appropriately. */
+export type VideoSource = "camera" | "screen";
+
 /** Bidirectional realtime voice channel with barge-in support. */
 export interface RealtimeVoiceChannel {
   /** Push a mic audio frame (PCM16, provider-specified sample rate). */
   sendAudio(frame: ArrayBuffer): void;
+  /**
+   * Push a still frame (JPEG) so the interviewer can actually see. Optional:
+   * text-only providers and the pipeline fallback have no vision path.
+   */
+  sendVideo?(jpeg: ArrayBuffer, source: VideoSource): void;
   /** Update the system/context instructions mid-session (stage changes). */
   updateContext(instructions: string): void;
   events(): AsyncIterable<VoiceEvent>;

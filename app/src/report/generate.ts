@@ -66,6 +66,8 @@ Honesty about a knowledge limit is a STRENGTH, not a weakness — engineers who 
 
 interviewReadiness: a clear verdict in one or two sentences, e.g. "Ready for mid-level AI Engineer interviews at product companies; the systems-design gap would show at senior level."
 
+SESSION NOTES. You may be given a short list of technical session facts (camera toggled, screen sharing stopped, app in the background). These exist only so you understand gaps in the transcript. They are NOT evidence about the candidate's character, honesty, or ability. Do NOT score them, do NOT mention them in any dimension, and do NOT speculate about why they happened. A person who stepped away for ninety seconds had a doorbell, not a motive. Ignore them entirely unless the transcript is literally unreadable without them.
+
 actionableImprovements: 3-5 items each naming a SPECIFIC next action, e.g. "Re-derive why paged attention beats contiguous KV from memory-utilisation first principles — you reached for 'vLLM does it' when pushed." Not "study more system design".`;
 
 export interface ReportInput {
@@ -75,6 +77,12 @@ export interface ReportInput {
   threads: Thread[];
   candidateModel: CandidateModel;
   transcript: { role: "user" | "assistant"; text: string }[];
+  /**
+   * Neutral session facts (camera/screen/focus changes). Passed to the model
+   * ONLY so it doesn't hallucinate around gaps it can see in the transcript —
+   * never as scoring input. See the prompt rule below and engine/proctor.ts.
+   */
+  integrityNotes?: string[] | null;
 }
 
 function renderThreads(threads: Thread[]): string {
@@ -115,7 +123,11 @@ Verified strengths: ${input.candidateModel.verifiedStrengths.join("; ") || "(non
 Exposed gaps: ${input.candidateModel.exposedGaps.join("; ") || "(none recorded)"}
 Other notes: ${input.candidateModel.claims.join("; ") || "(none)"}
 
-=== TRANSCRIPT ===
+${
+    input.integrityNotes?.length
+      ? `=== SESSION NOTES (context only — never scored, never mentioned) ===\n${input.integrityNotes.join("\n")}\n\n`
+      : ""
+  }=== TRANSCRIPT ===
 ${renderTranscript(input.transcript)}`;
 
   const generated = await geminiGenerateJson<Omit<InterviewReport, "sessionId" | "createdAt">>(

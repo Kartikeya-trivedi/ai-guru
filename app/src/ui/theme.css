@@ -397,6 +397,116 @@ textarea { resize: vertical; font-family: var(--mono); font-size: 12px; }
 ::-webkit-scrollbar-thumb { background: var(--line); border-radius: 5px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--line-hi); }
 
+/* ── video stage ───────────────────────────────────────────────────────
+ * A video call, rendered as broadcast equipment rather than a consumer chat
+ * app: matte panels, hard corners, no drop shadows.
+ */
+
+.stage {
+  display: grid;
+  grid-template-columns: 1fr 220px;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.stage-main {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  overflow: hidden;
+}
+
+.stage-side { display: flex; flex-direction: column; gap: 10px; }
+
+.tile {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  background: #000;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  overflow: hidden;
+}
+
+.tile-off {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+.tile-tag {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  font: 500 9px/1 var(--mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  background: rgba(0, 0, 0, 0.6);
+  padding: 3px 5px;
+  border-radius: 2px;
+}
+
+/* Interviewer presence: a listening system, not a fake face. */
+.presence {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 100%;
+}
+
+.presence-core {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #3a3531, #16130f);
+  border: 1px solid var(--line-hi);
+}
+
+.presence-ring {
+  position: absolute;
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  border: 1px solid var(--live);
+  opacity: 0;
+}
+
+/* Only animates while the interviewer actually speaks — a permanently
+   pulsing orb becomes wallpaper and stops meaning anything. */
+.presence.speaking .presence-ring {
+  animation: presence-pulse 1.6s ease-out infinite;
+}
+.presence.speaking .presence-core {
+  border-color: var(--live);
+  background: radial-gradient(circle at 40% 35%, #4a2417, #1a0f0a);
+}
+
+@keyframes presence-pulse {
+  0%   { opacity: 0.7; transform: scale(1); }
+  100% { opacity: 0; transform: scale(2.1); }
+}
+
+.presence-label {
+  position: absolute;
+  bottom: 14px;
+}
+
+.small-presence .presence-core { width: 26px; height: 26px; }
+
+.stage-controls { display: flex; flex-direction: column; gap: 6px; margin-top: 2px; }
+.stage-controls .btn { width: 100%; font-size: 12px; padding: 7px 10px; margin-top: 0; }
+
+@media (max-width: 900px) {
+  .stage { grid-template-columns: 1fr; }
+  .stage-side { flex-direction: row; flex-wrap: wrap; }
+  .stage-side .tile { flex: 1 1 140px; }
+}
+
 /* ── print ─────────────────────────────────────────────────────────────
  * "Export PDF" prints the report. Someone may take this into a mentor
  * session or attach it to an application, so it has to read as a document,

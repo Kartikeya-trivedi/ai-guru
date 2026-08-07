@@ -5,7 +5,13 @@ import { createAudioSink, type AudioSink } from "../voice/playback";
 import { GEMINI_INPUT_SAMPLE_RATE } from "../providers/gemini/live";
 import { LatencyTracker } from "../voice/metrics";
 import type { ParsedResume } from "../resume/types";
-import type { RealtimeVoiceChannel } from "../providers/types";
+import type { RealtimeVoiceChannel, VideoSource } from "../providers/types";
+import {
+  startCameraCapture,
+  startScreenCapture,
+  type VideoCapture,
+} from "../video/capture";
+import { IntegrityMonitor, type IntegrityEvent } from "./proctor";
 import { interviewerPersona } from "./persona";
 import { DEFAULT_STAGES } from "./stages";
 import { assessAnswer } from "./assess";
@@ -44,6 +50,11 @@ export interface SessionCallbacks {
   onNotice(message: string): void;
   onStatus(status: "connecting" | "live" | "ended" | "disconnected"): void;
   /**
+   * A camera or screen stream started or stopped, so the UI can show/hide the
+   * tile. Null means that source is now off.
+   */
+  onVideoChange?(source: VideoSource, stream: MediaStream | null): void;
+  /**
    * A complete turn of the transcript, fired at exchange boundaries so it can
    * be persisted. Off the audio path; the caller must not block on it.
    */
@@ -58,6 +69,12 @@ export interface SessionOptions {
   maxDepthPerThread?: number;
   /** Speed up stage budgets for testing (e.g. 0.1 = 10x faster). */
   timeScale?: number;
+  /**
+   * Turn the candidate's camera on at the start. Opt-in: a video interview is
+   * more realistic and more stressful, but sending someone's face to a model
+   * must never be a silent default.
+   */
+  camera?: boolean;
 }
 
 /** Collision-free across app restarts (a module counter is not — it resets). */
@@ -120,6 +137,17 @@ export class InterviewSession {
   /** Set by stop(), so an event-loop exit can tell a clean end from a drop. */
   private stopped = false;
 
+  private camera: VideoCapture | null = null;
+  private screen: VideoCapture | null = null;
+  private integrity = new IntegrityMonitor();
+  /**
+   * The wire protocol sends bare frames with no source label, so the model
+   * would otherwise have no idea whether it is looking at a face or a code
+   * editor. We announce a switch once, when the active source changes, rather
+   * than tagging every frame — one line of context beats per-frame chatter.
+   */
+  private lastAnnouncedSource: VideoSource | null = null;
+
   constructor(
     private opts: SessionOptions,
     private cb: SessionCallbacks,
@@ -144,7 +172,10 @@ export class InterviewSession {
     this.topicQueue = this.topicsForStage(this.stage.id);
 
     const system = [
-      interviewerPersona(this.opts.jobTarget),
+      // Vision guidance is baked in from the start when the camera is opted
+      // into, so the interviewer never has to be told mid-flight that it
+      // suddenly has eyes.
+      interviewerPersona(this.opts.jobTarget, { camera: this.opts.camera }),
       jobBrief(this.opts.jobTarget),
       resumeBrief(this.opts.resume),
       stageBrief(this.stage),
@@ -180,10 +211,91 @@ export class InterviewSession {
       throw translateStartError(e);
     }
 
+    this.integrity.start();
     this.stageStartedAt = performance.now();
     this.cb.onStatus("live");
     this.cb.onStageChange(this.stage);
     void this.pump();
+
+    // Camera comes up AFTER the session is live: a refused camera must never
+    // cost the candidate the interview, so it is a soft failure by design.
+    if (this.opts.camera) {
+      void this.enableCamera().catch((e) => {
+        this.cb.onNotice(e instanceof Error ? e.message : String(e));
+      });
+    }
+  }
+
+  // ── video ──────────────────────────────────────────────────────────
+
+  private sendFrame = (jpeg: ArrayBuffer, source: VideoSource): void => {
+    if (!this.channel?.sendVideo) return;
+    // Screen wins while it is up: during a coding round what is on the screen
+    // is the thing being discussed, and alternating sources frame-to-frame
+    // would leave the model unsure what it is even looking at.
+    const active: VideoSource = this.screen && !this.screen.ended() ? "screen" : "camera";
+    if (source !== active) return;
+
+    if (this.lastAnnouncedSource !== source) {
+      this.lastAnnouncedSource = source;
+      this.steer(
+        source === "screen"
+          ? "[VIDEO] You are now seeing the candidate's shared SCREEN rather than their camera."
+          : "[VIDEO] You are now seeing the candidate's CAMERA.",
+      );
+    }
+    this.channel.sendVideo(jpeg, source);
+  };
+
+  async enableCamera(): Promise<void> {
+    if (this.camera && !this.camera.ended()) return;
+    this.camera = await startCameraCapture(this.sendFrame);
+    this.integrity.record("camera-started");
+    this.cb.onVideoChange?.("camera", this.camera.stream);
+  }
+
+  disableCamera(): void {
+    if (!this.camera) return;
+    this.camera.stop();
+    this.camera = null;
+    this.integrity.record("camera-stopped");
+    this.cb.onVideoChange?.("camera", null);
+    if (this.lastAnnouncedSource === "camera") this.lastAnnouncedSource = null;
+  }
+
+  async startScreenShare(): Promise<void> {
+    if (this.screen && !this.screen.ended()) return;
+    this.screen = await startScreenCapture(this.sendFrame);
+    this.integrity.record("screen-share-started");
+    this.cb.onVideoChange?.("screen", this.screen.stream);
+
+    // The browser's own "Stop sharing" bar ends the track without routing
+    // through our UI — poll so the tile and the model both find out.
+    const watch = setInterval(() => {
+      if (this.screen && this.screen.ended()) {
+        clearInterval(watch);
+        this.stopScreenShare();
+      }
+      if (!this.screen) clearInterval(watch);
+    }, 1000);
+
+    this.steer(
+      "[SCREEN SHARE ON] The candidate is now sharing their screen. Look at what they are actually doing and react like a human would. Do not narrate the screen back to them.",
+    );
+  }
+
+  stopScreenShare(): void {
+    if (!this.screen) return;
+    this.screen.stop();
+    this.screen = null;
+    this.integrity.record("screen-share-stopped");
+    this.cb.onVideoChange?.("screen", null);
+    if (this.lastAnnouncedSource === "screen") this.lastAnnouncedSource = null;
+    this.steer("[SCREEN SHARE OFF] You can no longer see their screen.");
+  }
+
+  getIntegrityEvents(): IntegrityEvent[] {
+    return this.integrity.all();
   }
 
   private async pump(): Promise<void> {
@@ -472,6 +584,14 @@ Walk through it with them: complexity, edge cases, what would break. Reason abou
 
   stop(): void {
     this.stopped = true;
+    this.integrity.stop();
+    // Release the camera and screen explicitly — a lingering capture leaves
+    // the OS "in use" indicator lit, which reads as the app spying after the
+    // interview has ended.
+    this.camera?.stop();
+    this.camera = null;
+    this.screen?.stop();
+    this.screen = null;
     this.mic?.stop();
     this.mic = null;
     this.sink?.close();

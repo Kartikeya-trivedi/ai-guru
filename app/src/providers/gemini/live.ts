@@ -251,6 +251,24 @@ export function openGeminiLive(
         );
       },
 
+      sendVideo(jpeg: ArrayBuffer, source): void {
+        if (ws.readyState !== WebSocket.OPEN) return;
+        // The wire format carries no hint of WHICH camera/screen a frame came
+        // from, so the source is announced separately (see session.ts). Frames
+        // themselves go on the documented realtimeInput.video channel.
+        ws.send(
+          JSON.stringify({
+            realtimeInput: {
+              video: {
+                data: base64FromArrayBuffer(jpeg),
+                mimeType: "image/jpeg",
+              },
+            },
+          }),
+        );
+        void source;
+      },
+
       updateContext(instructions: string): void {
         if (ws.readyState !== WebSocket.OPEN) return;
         // Stage transitions: inject as a system-role turn the model reads

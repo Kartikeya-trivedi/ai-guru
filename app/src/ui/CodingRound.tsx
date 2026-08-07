@@ -36,11 +36,16 @@ export function CodingRound({
   onSubmit,
   phase,
   onReadyToCode,
+  sharingScreen,
+  onShareScreen,
 }: {
   problem: Problem;
   phase: "discuss" | "code";
   onReadyToCode: () => void;
   onSubmit: (language: Language, source: string, outcome?: RunOutcome) => void;
+  /** Whether the interviewer can currently see the candidate's screen. */
+  sharingScreen?: boolean;
+  onShareScreen?: () => void;
 }) {
   const [language, setLanguage] = useState<Language>("python");
   const [source, setSource] = useState("");
@@ -179,6 +184,20 @@ export function CodingRound({
                 Submit
               </button>
             </div>
+
+            {/* Sharing matters most here: a real interviewer watches you write,
+                and reacts to the code rather than only to the finished answer. */}
+            {onShareScreen && !sharingScreen && (
+              <div className="notice info" style={{ marginBottom: 12, display: "flex", gap: 12, alignItems: "center" }}>
+                <span style={{ flex: 1 }}>
+                  Share your screen so your interviewer can follow your thinking as you write, the way
+                  they would in a real round.
+                </span>
+                <button className="btn" style={{ marginTop: 0, flexShrink: 0 }} onClick={onShareScreen}>
+                  Share screen
+                </button>
+              </div>
+            )}
 
             {runBlockedReason && (
               <div className="notice info" style={{ marginBottom: 12 }}>{runBlockedReason}</div>
