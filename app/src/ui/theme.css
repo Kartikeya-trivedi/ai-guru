@@ -498,6 +498,40 @@ textarea { resize: vertical; font-family: var(--mono); font-size: 12px; }
 
 .small-presence .presence-core { width: 26px; height: 26px; }
 
+/* ── interviewer avatar ────────────────────────────────────────────── */
+
+.avatar {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* The rim light and aura only appear while speaking, so the face visibly
+   changes state instead of glowing permanently (which becomes wallpaper). */
+.avatar .av-rim,
+.avatar .av-aura {
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+.avatar.speaking .av-rim { opacity: 0.55; }
+.avatar.speaking .av-aura { opacity: 1; }
+
+.avatar-frame {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(ellipse at 50% 35%, #17130f 0%, #0b0908 70%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* The rAF loop still runs (the mouth must stay in sync with speech), but
+     the decorative pulse stops. */
+  .avatar .av-aura { transition: none; }
+}
+
 .stage-controls { display: flex; flex-direction: column; gap: 6px; margin-top: 2px; }
 .stage-controls .btn { width: 100%; font-size: 12px; padding: 7px 10px; margin-top: 0; }
 

@@ -286,6 +286,9 @@ export function InterviewApp() {
     await produceReport();
   }, [resume, sessionId, produceReport]);
 
+  /** Stable across renders so the avatar's rAF loop never restarts. */
+  const outputLevel = useCallback(() => sessionRef.current?.outputLevel() ?? 0, []);
+
   const toggleCamera = useCallback(async () => {
     const session = sessionRef.current;
     if (!session) return;
@@ -635,6 +638,9 @@ export function InterviewApp() {
                 camera={cameraStream}
                 screen={screenStream}
                 speaking={speaking}
+                // A stable getter, not a value: the avatar samples this every
+                // animation frame, which must not re-render React.
+                level={outputLevel}
                 onToggleCamera={toggleCamera}
                 onToggleScreen={toggleScreen}
                 screenSupported={screenCaptureSupported()}

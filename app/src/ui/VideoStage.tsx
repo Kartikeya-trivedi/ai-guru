@@ -1,14 +1,15 @@
 import { useEffect, useRef } from "react";
+import { Avatar } from "./avatar/Avatar";
 
 /**
  * The video surface of the interview room.
  *
- * The interviewer has no face. That is deliberate: a synthetic talking head
- * lands squarely in the uncanny valley and, worse, implies a person who is
- * not there. Instead it gets an audio-reactive presence tile — clearly a
- * system, unmistakably *listening*. (A real avatar would mean a third-party
- * video-generation service and a per-minute bill; noted as an option, not a
- * default.)
+ * The interviewer is rendered as a stylised synthetic face that lip-syncs to
+ * the real output audio (see avatar/face.ts). Stylised rather than photoreal
+ * on purpose: a near-human render that is slightly off is unsettling to sit
+ * across from for an hour, and photoreal would mean a third-party avatar
+ * service billed per minute — which breaks the bring-your-own-key, works-
+ * offline shape of the rest of the product.
  *
  * The candidate's own tile is mirrored, like every video-call self-view, so
  * moving left moves the reflection left.
@@ -49,14 +50,17 @@ export function VideoStage({
   camera,
   screen,
   speaking,
+  level,
   onToggleCamera,
   onToggleScreen,
   screenSupported,
 }: {
   camera: MediaStream | null;
   screen: MediaStream | null;
-  /** The interviewer is currently talking — drives the presence animation. */
+  /** The interviewer is currently talking — lights the rim and lifts the brows. */
   speaking: boolean;
+  /** Live output loudness 0..1, sampled per frame to drive the mouth. */
+  level: () => number;
   onToggleCamera: () => void;
   onToggleScreen: () => void;
   screenSupported: boolean;
@@ -69,9 +73,8 @@ export function VideoStage({
         {screen ? (
           <Stream stream={screen} />
         ) : (
-          <div className={`presence ${speaking ? "speaking" : ""}`}>
-            <div className="presence-ring" />
-            <div className="presence-core" />
+          <div className="avatar-frame">
+            <Avatar level={level} speaking={speaking} />
             <div className="presence-label eyebrow">
               {speaking ? "Interviewer speaking" : "Interviewer listening"}
             </div>
@@ -93,8 +96,8 @@ export function VideoStage({
             still has a sense of being attended to. */}
         {screen && (
           <div className="tile">
-            <div className={`presence small-presence ${speaking ? "speaking" : ""}`}>
-              <div className="presence-core" />
+            <div className="avatar-frame">
+              <Avatar level={level} speaking={speaking} compact />
             </div>
             <span className="tile-tag">Interviewer</span>
           </div>

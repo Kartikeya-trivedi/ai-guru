@@ -298,6 +298,15 @@ export class InterviewSession {
     return this.integrity.all();
   }
 
+  /**
+   * Loudness of the interviewer's voice right now, 0..1. Polled per animation
+   * frame by the avatar to drive its mouth, so it must stay allocation-free
+   * and never throw once the sink is gone.
+   */
+  outputLevel(): number {
+    return this.sink?.level() ?? 0;
+  }
+
   private async pump(): Promise<void> {
     if (!this.channel) return;
     for await (const ev of this.channel.events()) {
