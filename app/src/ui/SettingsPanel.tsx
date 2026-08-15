@@ -35,6 +35,13 @@ const PROVIDERS: {
     where: "elevenlabs.io",
     required: false,
   },
+  {
+    id: "simli",
+    name: "Simli — photoreal interviewer",
+    role: "Streams a real video face lip-synced to the interviewer's voice. Without it you get the built-in animated face, which is free and works offline.",
+    where: "simli.com · billed per minute · adds some reply latency",
+    required: false,
+  },
 ];
 
 function KeyRow({ p }: { p: (typeof PROVIDERS)[number] }) {

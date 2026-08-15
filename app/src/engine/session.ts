@@ -12,6 +12,7 @@ import {
   type VideoCapture,
 } from "../video/capture";
 import { IntegrityMonitor, type IntegrityEvent } from "./proctor";
+import { openSimliAvatar, type PhotorealAvatar } from "../avatar/simli";
 import { interviewerPersona } from "./persona";
 import { DEFAULT_STAGES } from "./stages";
 import { assessAnswer } from "./assess";
@@ -54,6 +55,13 @@ export interface SessionCallbacks {
    * tile. Null means that source is now off.
    */
   onVideoChange?(source: VideoSource, stream: MediaStream | null): void;
+  /** The photoreal face connected (true) or dropped back to stylised (false). */
+  onAvatarChange?(active: boolean): void;
+  /**
+   * The photoreal face started/stopped talking. More accurate than inferring
+   * it from transcript chunks, since the avatar knows exactly when it speaks.
+   */
+  onAvatarSpeaking?(speaking: boolean): void;
   /**
    * A complete turn of the transcript, fired at exchange boundaries so it can
    * be persisted. Off the audio path; the caller must not block on it.
@@ -75,6 +83,12 @@ export interface SessionOptions {
    * must never be a silent default.
    */
   camera?: boolean;
+  /**
+   * Photoreal interviewer. Optional and independently keyed: without it the
+   * app renders the local stylised face, which costs nothing and works
+   * offline.
+   */
+  photoreal?: { apiKey: string; faceId?: string };
 }
 
 /** Collision-free across app restarts (a module counter is not — it resets). */
@@ -147,6 +161,9 @@ export class InterviewSession {
    * than tagging every frame — one line of context beats per-frame chatter.
    */
   private lastAnnouncedSource: VideoSource | null = null;
+
+  /** Null whenever photoreal is off, unconfigured, or has dropped. */
+  private avatar: PhotorealAvatar | null = null;
 
   constructor(
     private opts: SessionOptions,
@@ -294,6 +311,50 @@ export class InterviewSession {
     this.steer("[SCREEN SHARE OFF] You can no longer see their screen.");
   }
 
+  // ── photoreal avatar ───────────────────────────────────────────────
+
+  /**
+   * Connect the photoreal face to DOM elements the UI owns.
+   *
+   * Separate from start() because the session has no DOM: React must mount
+   * the <video>/<audio> pair first and hand them over. Safe to call when
+   * photoreal is unconfigured — it simply does nothing, leaving the local
+   * stylised face in place.
+   *
+   * Throws only so the caller can show a reason; the interview itself is
+   * never at risk, because audio silently keeps playing locally.
+   */
+  async attachPhotorealAvatar(videoEl: HTMLVideoElement, audioEl: HTMLAudioElement): Promise<void> {
+    const cfg = this.opts.photoreal;
+    if (!cfg?.apiKey || this.avatar) return;
+
+    this.avatar = await openSimliAvatar({
+      apiKey: cfg.apiKey,
+      faceId: cfg.faceId,
+      videoEl,
+      audioEl,
+      onSpeakingChange: (speaking) => this.cb.onAvatarSpeaking?.(speaking),
+      onDropped: (reason) => {
+        // Drop the reference so the very next audio chunk routes back to the
+        // local sink, then tell the UI to swap the face out.
+        this.avatar = null;
+        this.cb.onAvatarChange?.(false);
+        this.cb.onNotice(`${reason} Falling back to the standard interviewer.`);
+      },
+    });
+
+    this.cb.onAvatarChange?.(true);
+  }
+
+  isPhotorealActive(): boolean {
+    return this.avatar?.isConnected() ?? false;
+  }
+
+  /** True when a key is configured, whether or not it has connected yet. */
+  wantsPhotoreal(): boolean {
+    return Boolean(this.opts.photoreal?.apiKey);
+  }
+
   getIntegrityEvents(): IntegrityEvent[] {
     return this.integrity.all();
   }
@@ -313,7 +374,16 @@ export class InterviewSession {
       switch (ev.type) {
         case "audio":
           if (this.tracker.markModelAudio()) this.cb.onLatency(this.tracker.summary());
-          this.sink?.enqueue(ev.frame, ev.sampleRate);
+          // Exactly one of these owns playback. The avatar plays its own audio
+          // so the mouth stays locked to the voice; doing both would double
+          // the interviewer. If the avatar ever drops mid-interview this falls
+          // back to local playback on the very next chunk, so the candidate
+          // keeps hearing their interviewer either way.
+          if (this.avatar?.isConnected()) {
+            this.avatar.pushAudio(ev.frame, ev.sampleRate);
+          } else {
+            this.sink?.enqueue(ev.frame, ev.sampleRate);
+          }
           break;
 
         case "transcript":
@@ -327,8 +397,12 @@ export class InterviewSession {
           break;
 
         case "interrupted":
-          // Barge-in — stop talking immediately, like a person would.
+          // Barge-in — stop talking immediately, like a person would. Both
+          // paths are cleared regardless of which is playing: a stale queue on
+          // the idle path would replay a cut-off sentence if the other side
+          // dropped a moment later.
           this.sink?.flush();
+          this.avatar?.interrupt();
           break;
 
         case "turn-complete":
@@ -597,6 +671,8 @@ Walk through it with them: complexity, edge cases, what would break. Reason abou
     // Release the camera and screen explicitly — a lingering capture leaves
     // the OS "in use" indicator lit, which reads as the app spying after the
     // interview has ended.
+    this.avatar?.close();
+    this.avatar = null;
     this.camera?.stop();
     this.camera = null;
     this.screen?.stop();

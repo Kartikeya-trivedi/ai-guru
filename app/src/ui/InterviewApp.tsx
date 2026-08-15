@@ -72,6 +72,11 @@ export function InterviewApp() {
   const [speaking, setSpeaking] = useState(false);
   const speakingTimer = useRef<number | null>(null);
 
+  /** Photoreal face: live yet? Plus the elements the SDK renders into. */
+  const [photorealActive, setPhotorealActive] = useState(false);
+  const photorealVideoRef = useRef<HTMLVideoElement>(null);
+  const photorealAudioRef = useRef<HTMLAudioElement>(null);
+
   const [problem, setProblem] = useState<Problem | null>(null);
   const [codePhase, setCodePhase] = useState<"discuss" | "code">("discuss");
   const [verdict, setVerdict] = useState<CodeVerdict | null>(null);
@@ -173,10 +178,22 @@ export function InterviewApp() {
       setSessionId(sid);
     }
 
+    // Optional and separately keyed — absent, the local stylised face is used.
+    const simliKey = await getKey("simli");
     const session = new InterviewSession(
-      { apiKey, resume, jobTarget, camera: useCamera },
+      {
+        apiKey,
+        resume,
+        jobTarget,
+        camera: useCamera,
+        ...(simliKey ? { photoreal: { apiKey: simliKey } } : {}),
+      },
       {
         onStatus: setStatus,
+        onAvatarChange: setPhotorealActive,
+        // The avatar knows exactly when it is talking; prefer it over the
+        // transcript-chunk heuristic when it is driving the face.
+        onAvatarSpeaking: setSpeaking,
         onVideoChange: (source, stream) => {
           if (source === "camera") setCameraStream(stream);
           else setScreenStream(stream);
@@ -214,6 +231,17 @@ export function InterviewApp() {
     sessionRef.current = session;
     try {
       await session.start();
+      // After start(), so a slow or failed avatar never delays the voice
+      // interview. A failure here is a notice; the stylised face carries on.
+      if (session.wantsPhotoreal() && photorealVideoRef.current && photorealAudioRef.current) {
+        void session
+          .attachPhotorealAvatar(photorealVideoRef.current, photorealAudioRef.current)
+          .catch((e) =>
+            setNotice(
+              `${e instanceof Error ? e.message : String(e)} Using the standard interviewer.`,
+            ),
+          );
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setView("brief");
@@ -644,6 +672,9 @@ export function InterviewApp() {
                 onToggleCamera={toggleCamera}
                 onToggleScreen={toggleScreen}
                 screenSupported={screenCaptureSupported()}
+                photorealActive={photorealActive}
+                photorealVideoRef={photorealVideoRef}
+                photorealAudioRef={photorealAudioRef}
               />
               {transcript.length === 0 && (
                 <p className="muted">Say hello when you're ready.</p>

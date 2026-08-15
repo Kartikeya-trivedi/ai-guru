@@ -4,12 +4,18 @@ import { Avatar } from "./avatar/Avatar";
 /**
  * The video surface of the interview room.
  *
- * The interviewer is rendered as a stylised synthetic face that lip-syncs to
- * the real output audio (see avatar/face.ts). Stylised rather than photoreal
- * on purpose: a near-human render that is slightly off is unsettling to sit
- * across from for an hour, and photoreal would mean a third-party avatar
- * service billed per minute — which breaks the bring-your-own-key, works-
- * offline shape of the rest of the product.
+ * The interviewer has two possible faces:
+ *
+ *  - PHOTOREAL, when a Simli key is configured: a real streamed video face,
+ *    lip-synced by the service from our Gemini audio. Costs per minute and
+ *    needs the network.
+ *  - STYLISED, otherwise: the local SVG face lip-synced from output RMS.
+ *    Free, offline, and the automatic fallback if the service drops.
+ *
+ * The photoreal <video>/<audio> pair stays mounted even while stylised is
+ * showing, because the session needs real DOM elements to hand the SDK before
+ * a connection exists. They are hidden rather than conditionally rendered —
+ * unmounting would kill a live stream on any re-render.
  *
  * The candidate's own tile is mirrored, like every video-call self-view, so
  * moving left moves the reflection left.
@@ -54,6 +60,9 @@ export function VideoStage({
   onToggleCamera,
   onToggleScreen,
   screenSupported,
+  photorealActive,
+  photorealVideoRef,
+  photorealAudioRef,
 }: {
   camera: MediaStream | null;
   screen: MediaStream | null;
@@ -64,9 +73,16 @@ export function VideoStage({
   onToggleCamera: () => void;
   onToggleScreen: () => void;
   screenSupported: boolean;
+  /** True once the streamed face is live; false shows the stylised fallback. */
+  photorealActive?: boolean;
+  photorealVideoRef?: React.RefObject<HTMLVideoElement | null>;
+  photorealAudioRef?: React.RefObject<HTMLAudioElement | null>;
 }) {
   return (
     <div className="stage">
+      {/* Simli plays the interviewer's voice through this element when the
+          photoreal face is live, so video and audio stay locked together. */}
+      <audio ref={photorealAudioRef} autoPlay style={{ display: "none" }} />
       {/* Screen share takes the main frame when present — it is what is being
           discussed. Otherwise the interviewer presence holds the space. */}
       <div className="stage-main">
@@ -74,7 +90,16 @@ export function VideoStage({
           <Stream stream={screen} />
         ) : (
           <div className="avatar-frame">
-            <Avatar level={level} speaking={speaking} />
+            {/* Always mounted so the SDK has elements to attach to; hidden
+                until the stream is actually live. */}
+            <video
+              ref={photorealVideoRef}
+              autoPlay
+              playsInline
+              className="photoreal-video"
+              style={{ display: photorealActive ? "block" : "none" }}
+            />
+            {!photorealActive && <Avatar level={level} speaking={speaking} />}
             <div className="presence-label eyebrow">
               {speaking ? "Interviewer speaking" : "Interviewer listening"}
             </div>
