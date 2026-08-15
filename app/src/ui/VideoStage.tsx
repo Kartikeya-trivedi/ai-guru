@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Avatar } from "./avatar/Avatar";
 
 /**
@@ -63,6 +63,7 @@ export function VideoStage({
   photorealActive,
   photorealVideoRef,
   photorealAudioRef,
+  onEnd,
 }: {
   camera: MediaStream | null;
   screen: MediaStream | null;
@@ -77,7 +78,12 @@ export function VideoStage({
   photorealActive?: boolean;
   photorealVideoRef?: React.RefObject<HTMLVideoElement | null>;
   photorealAudioRef?: React.RefObject<HTMLAudioElement | null>;
+  /** Leave the interview and go to the report. */
+  onEnd?: () => void;
 }) {
+  // Ending is irreversible — the session cannot be resumed — so it takes two
+  // clicks. A misclick an hour into an interview would be brutal.
+  const [confirmingEnd, setConfirmingEnd] = useState(false);
   return (
     <div className="stage">
       {/* Simli plays the interviewer's voice through this element when the
@@ -140,6 +146,24 @@ export function VideoStage({
           >
             {screen ? "Stop sharing" : "Share screen"}
           </button>
+
+          {/* Leaving lives with the other call controls, where anyone would
+              look for it — not buried in a side panel. */}
+          {onEnd &&
+            (confirmingEnd ? (
+              <>
+                <button className="btn btn-end" onClick={onEnd}>
+                  End — write my report
+                </button>
+                <button className="btn btn-ghost" onClick={() => setConfirmingEnd(false)}>
+                  Keep going
+                </button>
+              </>
+            ) : (
+              <button className="btn btn-end-quiet" onClick={() => setConfirmingEnd(true)}>
+                Leave interview
+              </button>
+            ))}
         </div>
       </div>
     </div>

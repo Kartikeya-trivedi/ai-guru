@@ -516,6 +516,26 @@ textarea { resize: vertical; font-family: var(--mono); font-size: 12px; }
 .avatar.speaking .av-rim { opacity: 0.55; }
 .avatar.speaking .av-aura { opacity: 1; }
 
+/* Leaving the interview: quiet until you reach for it, then unmistakable. */
+.btn-end-quiet {
+  border-color: rgba(224, 82, 82, 0.35);
+  color: #e8a5a2;
+}
+.btn-end-quiet:hover:not(:disabled) {
+  border-color: var(--bad);
+  background: rgba(224, 82, 82, 0.08);
+}
+.btn-end {
+  background: var(--bad);
+  border-color: var(--bad);
+  color: #1a0e0d;
+  font-weight: 600;
+}
+.btn-end:hover:not(:disabled) {
+  background: #e96a6a;
+  border-color: #e96a6a;
+}
+
 /* Streamed photoreal face fills its frame like any other video tile. */
 .photoreal-video {
   position: absolute;

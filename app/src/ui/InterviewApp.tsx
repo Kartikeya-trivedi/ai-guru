@@ -11,6 +11,7 @@ import { SettingsPanel } from "./SettingsPanel";
 import { KeyOnboarding } from "./KeyOnboarding";
 import { CodingRound } from "./CodingRound";
 import { VideoStage } from "./VideoStage";
+import { Avatar } from "./avatar/Avatar";
 import { screenCaptureSupported } from "../video/capture";
 import { describeIntegrity } from "../engine/proctor";
 import { extractRequirements } from "../engine/jd";
@@ -584,6 +585,43 @@ export function InterviewApp() {
                 </label>
               </div>
 
+              {/* Meet the interviewer before the pressure starts. It also
+                  means the face is visible without having to begin a session
+                  just to see who you're about to talk to. */}
+              <div className="reveal panel">
+                <span className="eyebrow">Your interviewer</span>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 16,
+                    alignItems: "center",
+                    marginTop: 10,
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 132,
+                      height: 132,
+                      flexShrink: 0,
+                      borderRadius: "var(--r)",
+                      overflow: "hidden",
+                      border: "1px solid var(--line)",
+                    }}
+                  >
+                    <div className="avatar-frame">
+                      {/* No audio yet, so the mouth rests closed — but it
+                          still blinks and drifts, which is the point. */}
+                      <Avatar level={() => 0} speaking={false} />
+                    </div>
+                  </div>
+                  <p className="muted small" style={{ margin: 0 }}>
+                    A senior {role} who has read your resume and picked what to ask.
+                    They'll speak, listen, and follow up — so talk the way you would
+                    to a person, not a form.
+                  </p>
+                </div>
+              </div>
+
               <div className="reveal panel">
                 <span className="eyebrow">Camera</span>
                 <label
@@ -675,6 +713,7 @@ export function InterviewApp() {
                 photorealActive={photorealActive}
                 photorealVideoRef={photorealVideoRef}
                 photorealAudioRef={photorealAudioRef}
+                onEnd={finish}
               />
               {transcript.length === 0 && (
                 <p className="muted">Say hello when you're ready.</p>
