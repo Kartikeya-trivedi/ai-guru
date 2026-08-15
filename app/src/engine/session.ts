@@ -12,7 +12,9 @@ import {
   type VideoCapture,
 } from "../video/capture";
 import { IntegrityMonitor, type IntegrityEvent } from "./proctor";
-import { openSimliAvatar, type PhotorealAvatar } from "../avatar/simli";
+// Type-only: the implementation is loaded on demand (see below), so the
+// paid-avatar SDK never lands in the bundle for users on the free face.
+import type { PhotorealAvatar } from "../avatar/simli";
 import { interviewerPersona } from "./persona";
 import { DEFAULT_STAGES } from "./stages";
 import { assessAnswer } from "./assess";
@@ -327,6 +329,10 @@ export class InterviewSession {
   async attachPhotorealAvatar(videoEl: HTMLVideoElement, audioEl: HTMLAudioElement): Promise<void> {
     const cfg = this.opts.photoreal;
     if (!cfg?.apiKey || this.avatar) return;
+
+    // Loaded only when a key exists: the avatar SDK is dead weight for the
+    // default free face, and this keeps it out of that bundle entirely.
+    const { openSimliAvatar } = await import("../avatar/simli");
 
     this.avatar = await openSimliAvatar({
       apiKey: cfg.apiKey,

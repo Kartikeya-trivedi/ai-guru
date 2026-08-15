@@ -162,4 +162,35 @@ test.
 | Code execution not sandboxed against the user | The candidate runs their own code on their own machine — same trust boundary as their own terminal. Bounds exist to protect the interview (timeouts, output caps), not to defend the machine from its owner |
 | `dompurify` pinned via npm overrides | Monaco ships a version with known XSS advisories; we sell this app, so we don't inherit CVEs |
 | Fonts bundled via @fontsource | Offline-first desktop product — a UI that needs a CDN to render its own type isn't offline |
+| Animated (non-photoreal) interviewer face is the default | Free, offline, instant, and no second API key. Photoreal is opt-in via a key; the SDK is lazy-loaded so the free path doesn't carry 576 kB it never runs |
+| Photoreal via a paid API rather than self-hosted open source | See below — no OSS model runs in real time on a normal laptop |
+
+### Why photoreal isn't done with open-source models
+
+Researched rather than assumed, because "just use an open-source model" is the
+obvious question and the answer is not obvious.
+
+| Model | Licence | Commercial use | Realtime? |
+|-------|---------|----------------|-----------|
+| **MuseTalk** | MIT | Yes | 30 fps+ **only on a V100-class GPU** |
+| **LatentSync** | Apache-2.0 | Yes | No — seconds-to-minutes per clip, 8–18 GB VRAM |
+| **SadTalker** | Apache-2.0 | Yes | No — medium speed |
+| **Wav2Lip** | Research only (LRS2) | **No** | Fast, but unusable in a sold product |
+
+The blocker is hardware, not licensing. MuseTalk is the only option that is
+both commercially licensed and realtime-capable — but "realtime" means a
+datacenter GPU. On a 4 GB laptop GPU an 8-second clip takes about 5 minutes,
+roughly 37x slower than the conversation it is meant to accompany. Shipping it
+would also mean bundling Python, CUDA and multi-GB model weights into what is
+currently a 4 MB installer.
+
+Note also that Wav2Lip — the most widely referenced of these — is trained on
+LRS2 and is **non-commercial**. It cannot go into a product we sell, however
+often it appears in tutorials.
+
+So the real choices are: rent a GPU and self-host (you now run infra, lose
+local-first, and pay hourly whether anyone interviews or not), require every
+candidate to own a fast GPU, or call a paid API per minute. At V1 volumes the
+paid API is both cheaper and simpler than self-hosting — and the free animated
+face stays the default, so neither cost applies unless the user opts in.
 | Depth controller as code, not prompt | "Drill deeper" as an explicit state machine is testable, tunable, and can't be prompt-drifted away |
