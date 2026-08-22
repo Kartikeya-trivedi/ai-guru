@@ -602,7 +602,31 @@ export class InterviewSession {
 
   private advanceStage(reason: string): void {
     if (this.stageIndex >= this.stages.length - 1) return;
-    this.stageIndex += 1;
+    this.enterStage(this.stageIndex + 1, reason);
+  }
+
+  /**
+   * Jump forward to a named stage, skipping whatever sits between.
+   *
+   * The interview normally walks its stages in order and only reaches the
+   * coding round around the half-hour mark. But asking for the coding round
+   * early is a legitimate request, not a bug — a real interviewer would move
+   * the interview on rather than make the candidate sit out the remaining
+   * small talk. Forward only: rewinding would ask the model to un-know what
+   * it has already learned about this candidate.
+   *
+   * Returns whether the jump happened, so callers can tell "moved on" from
+   * "we were already there".
+   */
+  jumpToStage(id: StageId, reason: string): boolean {
+    const target = this.stages.findIndex((s) => s.id === id);
+    if (target < 0 || target <= this.stageIndex) return false;
+    this.enterStage(target, reason);
+    return true;
+  }
+
+  private enterStage(index: number, reason: string): void {
+    this.stageIndex = index;
     this.stageStartedAt = performance.now();
     this.topicQueue = this.topicsForStage(this.stage.id);
     this.currentThread = null;

@@ -346,6 +346,10 @@ export function InterviewApp() {
     const jobTarget: JobTarget = { role, seniority, jobDescription: jd || undefined };
     const picked = pickProblem(jobTarget);
     if (!picked) return setError("No problem available for this level.");
+    // Asking for the coding round early is a legitimate request. Move the
+    // interview on first so the model knows we have changed stage, THEN hand
+    // it the problem — the two steers must land in that order.
+    sessionRef.current?.jumpToStage("technical", "The candidate has asked to move on to the coding round");
     setProblem(picked);
     setCodePhase("discuss");
     setVerdict(null);
@@ -686,10 +690,20 @@ export function InterviewApp() {
                 </>
               )}
 
-              {stage?.id === "technical" && !problem && (
-                <button className="btn" style={{ marginTop: 16, width: "100%" }} onClick={startCodingRound}>
-                  Start coding round
-                </button>
+              {/* Always offered. Gating this on the technical stage buried the
+                  headline feature behind ~30 minutes of interview, which is
+                  no way to find out a product has it. */}
+              {!problem && (
+                <>
+                  <button className="btn" style={{ marginTop: 16, width: "100%" }} onClick={startCodingRound}>
+                    Start coding round
+                  </button>
+                  {stage?.id !== "technical" && (
+                    <p className="faint small" style={{ marginTop: 6 }}>
+                      Skips ahead to the technical stage.
+                    </p>
+                  )}
+                </>
               )}
 
               <button className="btn btn-ghost" style={{ marginTop: 10, width: "100%" }} onClick={finish}>

@@ -171,3 +171,34 @@ describe("InterviewSession empathy: gentle re-probe", () => {
     expect(steers).toMatch(/gentler|fair chance/i);
   });
 });
+
+describe("InterviewSession stage jump", () => {
+  it("moves to the technical stage on demand instead of making the candidate wait ~30 minutes", async () => {
+    // Regression for a product bug, not a crash: the coding round was only
+    // offered once the stage machine reached `technical` — stage 4 of 6, some
+    // half an hour in — so the headline feature was effectively invisible.
+    h.openGeminiLive.mockResolvedValue(fakeChannel([]));
+    const cb = callbacks();
+    const session = new InterviewSession({ apiKey: "k", resume: RESUME, jobTarget: { role: "AI Engineer", seniority: "mid" } }, cb);
+    await session.start();
+    await flush();
+
+    expect(session.stage.id).toBe("intro");
+    expect(session.jumpToStage("technical", "asked to code")).toBe(true);
+    expect(session.stage.id).toBe("technical");
+    // The model must be told, or it keeps interviewing the previous stage.
+    expect(cb.onStageChange).toHaveBeenCalledWith(expect.objectContaining({ id: "technical" }));
+    expect(h.updateContext.mock.calls.map((c) => String(c[0])).join("\n")).toMatch(/asked to code/);
+  });
+
+  it("never rewinds — the model cannot un-know what it has already been told", async () => {
+    h.openGeminiLive.mockResolvedValue(fakeChannel([]));
+    const session = new InterviewSession({ apiKey: "k", resume: RESUME, jobTarget: { role: "AI Engineer", seniority: "mid" } }, callbacks());
+    await session.start();
+    await flush();
+
+    session.jumpToStage("behavioral", "moving on");
+    expect(session.jumpToStage("technical", "back up")).toBe(false);
+    expect(session.stage.id).toBe("behavioral");
+  });
+});
