@@ -77,7 +77,11 @@ export interface SessionOptions {
   jobTarget: JobTarget;
   stages?: StageDefinition[];
   maxDepthPerThread?: number;
-  /** Speed up stage budgets for testing (e.g. 0.1 = 10x faster). */
+  /**
+   * Multiplier on every stage's targetMinutes. The UI's length picker sets
+   * it (45-minute interview = 0.75); tests use small values to run a whole
+   * interview in milliseconds.
+   */
   timeScale?: number;
   /**
    * Turn the candidate's camera on at the start. Opt-in: a video interview is
@@ -126,6 +130,12 @@ export class InterviewSession {
   private threads: Thread[] = [];
   private currentThread: Thread | null = null;
   private topicQueue: string[] = [];
+  /**
+   * Every topic already served this session. The reserve pool is filtered
+   * against it, so a stage that runs long never circles back to a question
+   * the candidate has already answered.
+   */
+  private coveredTopics = new Set<string>();
 
   private candidate: CandidateModel = {
     claims: [],
@@ -188,7 +198,7 @@ export class InterviewSession {
 
   async start(): Promise<void> {
     this.cb.onStatus("connecting");
-    this.topicQueue = this.topicsForStage(this.stage.id);
+    this.topicQueue = this.takeTopics(this.topicsForStage(this.stage.id));
 
     const system = [
       // Vision guidance is baked in from the start when the camera is opted
@@ -529,7 +539,7 @@ export class InterviewSession {
           break;
 
         case "next-stage":
-          this.advanceStage(move.reason);
+          this.endStageOrRefill(move.reason);
           break;
       }
     } catch (e) {
@@ -571,18 +581,20 @@ export class InterviewSession {
   }
 
   private topicsForStage(stage: StageId): string[] {
-    if (stage === "projects") {
-      // Depth beats breadth: the two most substantial projects, not all of them.
-      return this.opts.resume.projects
-        .slice(0, 2)
-        .map((p) => `${p.name} — ${p.technologies.slice(0, 3).join("/")}`);
+    const r = this.opts.resume;
+    if (stage === "intro") {
+      return ["how they introduce themselves", "what they want from their next role"];
     }
     if (stage === "resume") {
-      return this.opts.resume.experience.map((e) => `${e.role} at ${e.company}`);
+      return r.experience.map((e) => `${e.role} at ${e.company}`);
+    }
+    if (stage === "projects") {
+      // Depth beats breadth: the two most substantial projects, not all of them.
+      return r.projects.slice(0, 2).map((p) => `${p.name} — ${p.technologies.slice(0, 3).join("/")}`);
     }
     if (stage === "technical") {
       const reqs = this.opts.jobTarget.extractedRequirements ?? [];
-      return (reqs.length ? reqs : this.opts.resume.skills).slice(0, 3);
+      return (reqs.length ? reqs : r.skills).slice(0, 3);
     }
     if (stage === "behavioral") {
       return ["a conflict with a teammate", "a project that failed", "feedback they received"];
@@ -590,14 +602,96 @@ export class InterviewSession {
     return [];
   }
 
+  /**
+   * What to ask once the opening topics are spent but the stage still has
+   * time on the clock.
+   *
+   * Running out of prepared questions is not a reason to end a stage. A real
+   * interviewer with ten minutes left finds something else to ask; they don't
+   * thank you and move on. Without this the queue emptying ended the stage
+   * outright, and an hour-long interview finished in about fifteen minutes.
+   *
+   * Everything here is deliberately generic and resume-derived rather than
+   * clever — it exists to keep a stage honest to its budget, not to invent
+   * new signal.
+   */
+  private reserveTopicsForStage(stage: StageId): string[] {
+    const r = this.opts.resume;
+    if (stage === "intro") {
+      return ["what drew them to this field", "the area they consider their strongest"];
+    }
+    if (stage === "resume") {
+      return [
+        ...r.education.map((e) => `${e.degree} at ${e.institution}`),
+        "the reasoning behind their biggest career move",
+        "what they want their next role to be different from",
+      ];
+    }
+    if (stage === "projects") {
+      return [
+        ...r.projects.slice(2).map((p) => `${p.name} — ${p.technologies.slice(0, 3).join("/")}`),
+        "the hardest bug they have personally debugged",
+        "something they built that they would now design differently",
+        "a technical decision they argued for and lost",
+      ];
+    }
+    if (stage === "technical") {
+      const reqs = this.opts.jobTarget.extractedRequirements ?? [];
+      // Whatever the openers didn't reach, then their own claimed skills.
+      return [...reqs.slice(3), ...r.skills];
+    }
+    if (stage === "behavioral") {
+      return [
+        "disagreeing with someone more senior",
+        "a deadline they were not going to make",
+        "working with an unclear or shifting requirement",
+        "someone they helped level up",
+      ];
+    }
+    return [];
+  }
+
+  /** Claim topics for the queue, skipping any already asked this session. */
+  private takeTopics(topics: string[]): string[] {
+    const fresh = topics.filter((t) => t && !this.coveredTopics.has(t));
+    fresh.forEach((t) => this.coveredTopics.add(t));
+    return fresh;
+  }
+
   private moveToNextTopic(reason: string): void {
     this.topicQueue.shift();
     this.currentThread = null;
     const next = this.topicQueue[0];
-    if (!next) return this.advanceStage(reason);
+    if (!next) return this.endStageOrRefill(reason);
     this.steer(
       `[INTERVIEWER NOTE] ${reason}. Move on to: ${next}. Bridge naturally from what they just said — don't make the transition feel abrupt.`,
     );
+  }
+
+  /**
+   * The depth controller has decided this stage is finished. Honour that only
+   * if the stage is genuinely out of road.
+   *
+   * The split of responsibility: depth.ts decides when a THREAD is done — it
+   * can see the candidate's answers and nothing else. The clock decides when
+   * a STAGE is done. Letting depth.ts end stages meant the interview raced to
+   * the end whenever the candidate answered efficiently, which is exactly
+   * backwards: a candidate who answers well should get MORE interview, not
+   * less.
+   */
+  private endStageOrRefill(reason: string): void {
+    if (!this.stageBudgetSpent()) {
+      const reserve = this.takeTopics(this.reserveTopicsForStage(this.stage.id));
+      if (reserve.length) {
+        this.topicQueue = reserve;
+        this.currentThread = null;
+        this.steer(
+          `[INTERVIEWER NOTE] ${reason}. There is still time in this stage, so don't wrap up — move on to: ${reserve[0]}. Bridge naturally from what they just said.`,
+        );
+        return;
+      }
+    }
+    this.advanceStage(reason);
   }
 
   private advanceStage(reason: string): void {
@@ -628,7 +722,7 @@ export class InterviewSession {
   private enterStage(index: number, reason: string): void {
     this.stageIndex = index;
     this.stageStartedAt = performance.now();
-    this.topicQueue = this.topicsForStage(this.stage.id);
+    this.topicQueue = this.takeTopics(this.topicsForStage(this.stage.id));
     this.currentThread = null;
     this.steer([`[INTERVIEWER NOTE] ${reason}.`, stageBrief(this.stage), candidateModelBrief(this.candidate)].join("\n\n"));
     this.cb.onStageChange(this.stage);

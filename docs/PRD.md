@@ -194,3 +194,5 @@ candidate to own a fast GPU, or call a paid API per minute. At V1 volumes the
 paid API is both cheaper and simpler than self-hosting — and the free animated
 face stays the default, so neither cost applies unless the user opts in.
 | Depth controller as code, not prompt | "Drill deeper" as an explicit state machine is testable, tunable, and can't be prompt-drifted away |
+| depth.ts ends threads; the clock ends stages | A stage used to end the moment its topic queue emptied, so answering efficiently made the interview *shorter* — an hour of design finished in fifteen minutes. Stages now refill from a reserve of resume-derived topics while time remains |
+| Interview length is a user choice, not a constant | Not everyone has an hour to give. The picker scales the existing per-stage budgets, so a 30-minute interview is the same interview compressed, not a truncated one that never reaches the technical round |

@@ -202,3 +202,79 @@ describe("InterviewSession stage jump", () => {
     expect(session.stage.id).toBe("behavioral");
   });
 });
+
+describe("InterviewSession stage length", () => {
+  /** Drive N gradeable exchanges through one session. */
+  function manyExchanges(n: number): Ev[] {
+    const evs: Ev[] = [{ type: "transcript", role: "assistant", text: "Q0?", final: true }, { type: "turn-complete" }];
+    for (let i = 1; i <= n; i++) {
+      evs.push({ type: "transcript", role: "user", text: `A${i}`, final: true });
+      evs.push({ type: "transcript", role: "assistant", text: `Q${i}?`, final: true });
+      evs.push({ type: "turn-complete" });
+    }
+    return evs;
+  }
+
+  it("keeps a stage going while it still has time, instead of ending when the prepared questions run out", async () => {
+    // The bug: a stage ended the moment its topic queue emptied. intro had
+    // ZERO topics and projects had two, so an hour-long interview raced to
+    // wrapup in about fifteen minutes. Answering efficiently made the
+    // interview SHORTER, which is exactly backwards.
+    // Every answer is the worst case for length: wrong AND at the knowledge
+    // limit, so depth.ts asks to end the stage after every single one.
+    h.assess.mockResolvedValue({ quality: "wrong", note: "no", atKnowledgeLimit: true });
+    h.openGeminiLive.mockResolvedValue(fakeChannel(manyExchanges(3)));
+
+    const cb = callbacks();
+    // timeScale 1000 => budgets never expire during the test, so the only
+    // thing that could advance a stage is running out of material.
+    const session = new InterviewSession(
+      { apiKey: "k", resume: RESUME, jobTarget: { role: "AI Engineer", seniority: "mid" }, timeScale: 1000 },
+      cb,
+    );
+    await session.start();
+    await flush();
+
+    // Pre-fix, intro had no topics at all and was over after answer one.
+    expect(session.stage.id).toBe("intro");
+    // (onStageChange also fires once at start to seed the UI, so assert on
+    // the stage it would have moved TO rather than on call count.)
+    expect(cb.onStageChange).not.toHaveBeenCalledWith(expect.objectContaining({ id: "resume" }));
+    // And the reserve is what kept it alive, not luck.
+    expect(h.updateContext.mock.calls.map((c) => String(c[0])).join(" | ")).toMatch(
+      /still time in this stage/,
+    );
+  });
+
+  it("still advances once the clock is genuinely spent", async () => {
+    // The refill must not become an interview that never ends.
+    h.assess.mockResolvedValue({ quality: "wrong", note: "no", atKnowledgeLimit: true });
+    h.openGeminiLive.mockResolvedValue(fakeChannel(manyExchanges(6)));
+
+    const session = new InterviewSession(
+      { apiKey: "k", resume: RESUME, jobTarget: { role: "AI Engineer", seniority: "mid" }, timeScale: 0 },
+      callbacks(),
+    );
+    await session.start();
+    await flush();
+
+    expect(session.stage.id).not.toBe("intro");
+  });
+
+  it("never re-asks a topic the candidate already covered", async () => {
+    h.assess.mockResolvedValue({ quality: "wrong", note: "no", atKnowledgeLimit: true });
+    h.openGeminiLive.mockResolvedValue(fakeChannel(manyExchanges(8)));
+
+    const session = new InterviewSession(
+      { apiKey: "k", resume: RESUME, jobTarget: { role: "AI Engineer", seniority: "mid" }, timeScale: 1000 },
+      callbacks(),
+    );
+    await session.start();
+    await flush();
+
+    const moved = h.updateContext.mock.calls
+      .map((c) => String(c[0]))
+      .flatMap((t) => t.match(/Move on to: (.+?)\./g) ?? []);
+    expect(new Set(moved).size).toBe(moved.length);
+  });
+});

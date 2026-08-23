@@ -40,6 +40,14 @@ type View =
 const ROLES = ["AI Engineer", "Infra Engineer", "Cloud Engineer", "DevOps Engineer"];
 const SENIORITIES: JobTarget["seniority"][] = ["intern", "junior", "mid", "senior", "staff"];
 
+/**
+ * The stage budgets add up to a full-length interview; every other option is
+ * that shape, scaled. Derived rather than hardcoded so editing a stage's
+ * targetMinutes can't silently make the picker lie.
+ */
+const FULL_LENGTH_MIN = DEFAULT_STAGES.reduce((n, st) => n + st.targetMinutes, 0);
+const LENGTHS = [30, 45, FULL_LENGTH_MIN, 90];
+
 export function InterviewApp() {
   // Start on a neutral boot state, then resolve to onboarding or upload once
   // we know whether a key exists — avoids flashing the upload screen at a
@@ -55,6 +63,7 @@ export function InterviewApp() {
 
   const [role, setRole] = useState(ROLES[0]);
   const [seniority, setSeniority] = useState<JobTarget["seniority"]>("mid");
+  const [lengthMinutes, setLengthMinutes] = useState(FULL_LENGTH_MIN);
   const [jd, setJd] = useState("");
 
   const [status, setStatus] = useState("idle");
@@ -186,6 +195,7 @@ export function InterviewApp() {
         apiKey,
         resume,
         jobTarget,
+        timeScale: lengthMinutes / FULL_LENGTH_MIN,
         camera: useCamera,
         ...(simliKey ? { photoreal: { apiKey: simliKey } } : {}),
       },
@@ -578,6 +588,23 @@ export function InterviewApp() {
                     </select>
                   </label>
                 </div>
+                <label className="field">
+                  <span className="eyebrow">Length</span>
+                  <select
+                    value={lengthMinutes}
+                    onChange={(e) => setLengthMinutes(Number(e.target.value))}
+                  >
+                    {LENGTHS.map((m) => (
+                      <option key={m} value={m}>
+                        {m} minutes{m === FULL_LENGTH_MIN ? " — full interview" : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="faint small" style={{ marginTop: 6 }}>
+                    Every stage scales with this. You can leave whenever you want — the
+                    report is written from what actually happened.
+                  </span>
+                </label>
                 <label className="field">
                   <span className="eyebrow">Job description — optional</span>
                   <textarea
