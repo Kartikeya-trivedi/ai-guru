@@ -21,6 +21,14 @@ export interface GroqTextOptions extends ProviderConfig {
   temperature?: number;
   maxAttempts?: number;
   fallbackModels?: string[];
+  /**
+   * How many reasoning tokens gpt-oss may spend before answering. This is a
+   * latency knob, not a quality dial: assessment runs while the candidate is
+   * still talking, so it takes "low" — the schema is four fields and the
+   * judgement is one that a senior interviewer makes in a second. Report
+   * generation runs off the critical path and can afford to think.
+   */
+  reasoningEffort?: "low" | "medium" | "high";
 }
 
 const RETRYABLE = new Set([408, 429, 500, 502, 503, 504]);
@@ -79,7 +87,12 @@ async function generateOnce(
     model: opts.model,
     temperature: opts.temperature ?? 0.2,
     messages: messages.map((m) => ({ role: m.role, content: m.content })),
+    // gpt-oss returns its thinking in a separate `reasoning` field, so this
+    // only stops us paying to transfer tokens we discard; `content` is
+    // unaffected either way.
+    include_reasoning: false,
   };
+  if (opts.reasoningEffort) body.reasoning_effort = opts.reasoningEffort;
 
   if (opts.responseSchema) {
     body.response_format = {

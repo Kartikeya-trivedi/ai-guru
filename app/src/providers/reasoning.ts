@@ -88,6 +88,7 @@ export async function generateJson<T>(
         fallbackModels: assessment ? GROQ_ASSESSMENT_FALLBACKS : GROQ_REASONING_FALLBACKS,
         responseSchema: req.responseSchema,
         temperature: req.temperature,
+        reasoningEffort: assessment ? "low" : "medium",
       },
       messages,
     );
