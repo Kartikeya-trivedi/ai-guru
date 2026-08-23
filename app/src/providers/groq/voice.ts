@@ -32,6 +32,37 @@ export const GROQ_TTS_VOICE = "troy";
 /** Orpheus rejects input over 200 characters, so replies are spoken in pieces. */
 const TTS_CHAR_LIMIT = 200;
 
+/**
+ * Whisper does not return nothing for near-silence; it returns a confident
+ * short phrase. These are its well-known ones, drawn from the subtitle corpora
+ * it was trained on. A length check alone does not catch them, and the failure
+ * is bad in a specific way: the interviewer answers something the candidate
+ * never said, then grades them on it.
+ *
+ * Matched only against the WHOLE transcript, so a real answer that happens to
+ * contain "thank you" is untouched.
+ */
+const WHISPER_SILENCE_ARTEFACTS = new Set([
+  "you",
+  "thank you",
+  "thanks for watching",
+  "thank you for watching",
+  "bye",
+  "bye.",
+  "okay",
+  "so",
+  "the end",
+  "subs by www.zeoranger.co.uk",
+]);
+
+function isSilenceArtefact(text: string): boolean {
+  const normalised = text
+    .toLowerCase()
+    .replace(/[.,!?]+$/g, "")
+    .trim();
+  return normalised.length < 2 || WHISPER_SILENCE_ARTEFACTS.has(normalised);
+}
+
 export interface GroqVoiceOptions {
   apiKey: string;
   systemInstruction: string;
@@ -234,10 +265,11 @@ export async function openGroqVoice(
     inFlight = controller;
     try {
       const heard = await transcribe(pcm, controller.signal);
-      // Whisper will confidently invent text from room tone, so a turn that
-      // transcribes to almost nothing is dropped rather than answered —
-      // otherwise the interviewer replies to a cough.
-      if (heard.length < 2) return;
+      // Whisper invents confident text from room tone rather than returning
+      // nothing, so a turn that came back as one of its stock phrases is
+      // dropped rather than answered — otherwise the interviewer replies to a
+      // cough and then grades the candidate on words they never said.
+      if (isSilenceArtefact(heard)) return;
 
       queue.push({ type: "transcript", role: "user", text: heard, final: true });
       conversation.push({ role: "user", content: heard });

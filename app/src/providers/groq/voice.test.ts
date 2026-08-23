@@ -203,6 +203,52 @@ describe("openGroqVoice pipeline", () => {
     expect(sent.messages[1]).toEqual({ role: "assistant", content: "Tell me about kllm." });
   });
 
+  it("ignores Whisper's stock hallucinations instead of answering them", async () => {
+    // Near-silence does not transcribe to "" — it comes back as a confident
+    // "Thank you." Answering that means the interviewer replies to nothing and
+    // then grades the candidate on words they never said.
+    for (const artefact of ["Thank you.", "you", "Bye.", "Thanks for watching!"]) {
+      const fetchImpl = vi.fn(async (url: string) => {
+        if (String(url).includes("/audio/transcriptions")) {
+          return { ok: true, json: async () => ({ text: artefact }) };
+        }
+        throw new Error("should not have reached the model");
+      }) as unknown as typeof fetch;
+
+      const channel = await openGroqVoice(
+        { apiKey: "k", systemInstruction: "x", fetchImpl },
+        SR,
+      );
+      utter(channel);
+      await new Promise((r) => setTimeout(r, 20));
+
+      expect(calls(fetchImpl).some((c) => String(c[0]).includes("/chat/"))).toBe(false);
+    }
+  });
+
+  it("still answers a real sentence that merely contains a stock phrase", async () => {
+    const fetchImpl = mockFetch();
+    (fetchImpl as any).mockImplementation(async (url: string) => {
+      if (String(url).includes("/audio/transcriptions")) {
+        return { ok: true, json: async () => ({ text: "Thank you, so I used a hash map here." }) };
+      }
+      if (String(url).includes("/chat/completions")) {
+        return { ok: true, json: async () => ({ choices: [{ message: { content: "Why?" } }] }) };
+      }
+      return { ok: true, arrayBuffer: async () => encodeWav(new Int16Array(240), 24000) };
+    });
+
+    const channel = await openGroqVoice(
+      { apiKey: "k", systemInstruction: "x", fetchImpl },
+      SR,
+    );
+    const collected = drain(channel.events(), 4);
+    utter(channel);
+    await collected;
+
+    expect(calls(fetchImpl).some((c) => String(c[0]).includes("/chat/"))).toBe(true);
+  });
+
   it("does not answer a cough", async () => {
     const fetchImpl = mockFetch();
     const channel = await openGroqVoice(
