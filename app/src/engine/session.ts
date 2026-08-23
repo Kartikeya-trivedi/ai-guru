@@ -1,11 +1,13 @@
 import { openGeminiLive } from "../providers/gemini/live";
+import { openGroqVoice } from "../providers/groq/voice";
+import { getKey } from "../providers/keys";
 import { LIVE_MODEL } from "../providers/gemini/models";
 import { startMicCapture, type MicCapture } from "../voice/capture";
 import { createAudioSink, type AudioSink } from "../voice/playback";
 import { GEMINI_INPUT_SAMPLE_RATE } from "../providers/gemini/live";
 import { LatencyTracker } from "../voice/metrics";
 import type { ParsedResume } from "../resume/types";
-import type { RealtimeVoiceChannel, VideoSource } from "../providers/types";
+import type { ChatMessage, RealtimeVoiceChannel, VideoSource } from "../providers/types";
 import {
   startCameraCapture,
   startScreenCapture,
@@ -125,6 +127,17 @@ export class InterviewSession {
 
   private stages: StageDefinition[];
   private stageIndex = 0;
+  /**
+   * Kept so a failover can hand the replacement channel the same brief the
+   * interview started with, plus what has been said since. Without both, the
+   * fallback interviewer would introduce itself to someone it has already
+   * been talking to for twenty minutes.
+   */
+  private systemInstruction = "";
+  private history: ChatMessage[] = [];
+  /** Set while swapping channels, so the dying pump does not cry disconnected. */
+  private failingOver = false;
+  private onFallbackVoice = false;
   private stageStartedAt = 0;
 
   private threads: Thread[] = [];
@@ -210,6 +223,8 @@ export class InterviewSession {
       stageBrief(this.stage),
       `Open the interview now: greet ${this.opts.resume.name.split(" ")[0]} warmly by name and ask them to introduce themselves. Keep it to one or two sentences.`,
     ].join("\n\n");
+
+    this.systemInstruction = system;
 
     // Acquire the microphone FIRST — it's the cheapest, most-likely-to-fail
     // resource, and there's no reason to open a billed Live session before we
@@ -429,8 +444,15 @@ export class InterviewSession {
           break;
 
         case "error":
-          // A dropped connection is fatal to the live session: stop capturing
-          // so the candidate isn't talking into nothing, and flag it clearly.
+          // A key that has run out of quota is the one failure we can survive,
+          // so try that before treating the drop as fatal.
+          if (this.canFailOver(ev.message)) {
+            this.failingOver = true;
+            void this.failOverToGroq();
+            break;
+          }
+          // Any other dropped connection is fatal to the live session: stop
+          // capturing so the candidate isn't talking into nothing, and flag it.
           this.cb.onError(ev.message);
           if (/connection lost/i.test(ev.message)) {
             this.mic?.stop();
@@ -440,12 +462,89 @@ export class InterviewSession {
           break;
       }
     }
+    // A failover deliberately ends this loop to start another on the new
+    // channel, so it must not look like the interview died.
+    if (this.failingOver) return;
+
     // If the loop ended without an explicit stop(), the channel dropped.
     this.cb.onStatus(this.stopped ? "ended" : "disconnected");
     if (!this.stopped) {
       this.mic?.stop();
       this.mic = null;
     }
+  }
+
+  /**
+   * Is this failure one the Groq pipeline can rescue?
+   *
+   * Deliberately narrow. Quota exhaustion is permanent for the day, so
+   * degrading is strictly better than stopping. A generic network drop is
+   * usually transient, and silently downgrading someone to a slower
+   * interviewer because their wifi blinked would be the wrong trade — that
+   * still surfaces as an error the candidate can act on.
+   *
+   * Only once: if the fallback itself dies there is nothing left to try.
+   */
+  private canFailOver(message: string): boolean {
+    if (this.onFallbackVoice || this.stopped) return false;
+    return /quota|resource.?exhausted|insufficient|too many requests/i.test(message);
+  }
+
+  /**
+   * Swap the dead Gemini channel for the Groq pipeline without losing the
+   * interview. The mic callback reads this.channel on every frame, so
+   * replacing it is enough to redirect audio; the candidate keeps talking.
+   */
+  private async failOverToGroq(): Promise<void> {
+    try {
+      const key = await getKey("groq");
+      if (!key) {
+        throw new Error(
+          "Add a Groq API key in Settings and the interview can keep going on a backup voice " +
+            "if this happens again.",
+        );
+      }
+
+      this.channel?.close();
+      this.channel = await openGroqVoice(
+        {
+          apiKey: key,
+          systemInstruction: [
+            this.systemInstruction,
+            stageBrief(this.stage),
+            candidateModelBrief(this.candidate),
+            "[NOTE] You are resuming an interview already in progress. Do not greet them " +
+              "again or restart — pick up from the last thing that was said.",
+          ].join("\n\n"),
+          history: this.history,
+        },
+        GEMINI_INPUT_SAMPLE_RATE,
+      );
+
+      this.onFallbackVoice = true;
+      // The interviewer loses its eyes here, so stop pretending otherwise:
+      // the pipeline has no vision hop and sendVideo is absent by design.
+      this.lastAnnouncedSource = null;
+      this.cb.onStatus("live");
+      this.cb.onNotice(
+        "Your Gemini quota ran out, so the interview switched to a backup voice on Groq. " +
+          "Replies will be slower and the interviewer can no longer see your camera, but you " +
+          "can finish and still get your report.",
+      );
+    } catch (e) {
+      this.cb.onError(
+        `Your Gemini API key is out of quota and the interview could not continue. ${
+          e instanceof Error ? e.message : String(e)
+        }`,
+      );
+      this.mic?.stop();
+      this.mic = null;
+      this.cb.onStatus("disconnected");
+      return;
+    } finally {
+      this.failingOver = false;
+    }
+    void this.pump();
   }
 
   /**
@@ -462,8 +561,14 @@ export class InterviewSession {
     const question = this.pendingQuestion;
     this.pendingQuestion = this.assistantTurn.trim();
 
-    if (answer) this.cb.onTurnComplete("user", answer, this.stage.id);
-    if (this.pendingQuestion) this.cb.onTurnComplete("assistant", this.pendingQuestion, this.stage.id);
+    if (answer) {
+      this.cb.onTurnComplete("user", answer, this.stage.id);
+      this.history.push({ role: "user", content: answer });
+    }
+    if (this.pendingQuestion) {
+      this.cb.onTurnComplete("assistant", this.pendingQuestion, this.stage.id);
+      this.history.push({ role: "assistant", content: this.pendingQuestion });
+    }
 
     this.userTurn = "";
     this.assistantTurn = "";

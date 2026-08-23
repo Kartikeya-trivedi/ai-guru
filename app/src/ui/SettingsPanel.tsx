@@ -29,7 +29,7 @@ const PROVIDERS: {
   {
     id: "groq",
     name: "Groq",
-    role: "Optional alternative for grading, judging and reports — often faster and cheaper than Gemini. The interviewer's voice stays on Gemini either way.",
+    role: "Optional alternative for grading, judging and reports. Also acts as a backup voice: if your Gemini quota runs out mid-interview, the interview keeps going on Groq instead of ending — slower, and without video, but you still finish and get your report.",
     where: "console.groq.com → API Keys",
     required: false,
   },
