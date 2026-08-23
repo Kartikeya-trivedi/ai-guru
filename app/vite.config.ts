@@ -21,7 +21,10 @@ export default defineConfig(async ({ command }) => ({
    * Packaged builds have no env fallback by design: keys come from the OS
    * keychain via Tauri (see src/providers/keys.ts).
    */
-  envPrefix: command === "serve" ? ["VITE_", "GEMINI_", "XAI_", "ELEVENLABS_"] : ["VITE_"],
+  envPrefix:
+    command === "serve"
+      ? ["VITE_", "GEMINI_", "GROQ_", "XAI_", "ELEVENLABS_", "SIMLI_"]
+      : ["VITE_"],
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //

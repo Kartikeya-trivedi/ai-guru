@@ -1,5 +1,4 @@
-import { geminiGenerateJson } from "../providers/gemini/text";
-import { REASONING_MODEL, REASONING_FALLBACKS } from "../providers/gemini/models";
+import { generateJson } from "../providers/reasoning";
 import type { ParsedResume } from "./types";
 
 /**
@@ -75,11 +74,11 @@ export async function parseResume(
   rawText: string,
   opts: { apiKey: string; model?: string },
 ): Promise<ParsedResume> {
-  return geminiGenerateJson<ParsedResume>(
+  return generateJson<ParsedResume>(
     {
+      role: "reasoning",
       apiKey: opts.apiKey,
-      model: opts.model ?? REASONING_MODEL,
-      fallbackModels: REASONING_FALLBACKS,
+      model: opts.model,
       responseSchema: RESUME_SCHEMA as unknown as object,
       temperature: 0.2,
     },

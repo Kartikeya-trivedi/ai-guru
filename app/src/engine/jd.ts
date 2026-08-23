@@ -1,5 +1,4 @@
-import { geminiGenerateJson } from "../providers/gemini/text";
-import { REASONING_MODEL, REASONING_FALLBACKS } from "../providers/gemini/models";
+import { generateJson } from "../providers/reasoning";
 
 /**
  * Job-description awareness.
@@ -31,11 +30,11 @@ export async function extractRequirements(
 ): Promise<string[]> {
   const trimmed = jobDescription.trim();
   if (trimmed.length < 40) return [];
-  const { requirements } = await geminiGenerateJson<{ requirements: string[] }>(
+  const { requirements } = await generateJson<{ requirements: string[] }>(
     {
+      role: "reasoning",
       apiKey: opts.apiKey,
-      model: opts.model ?? REASONING_MODEL,
-      fallbackModels: REASONING_FALLBACKS,
+      model: opts.model,
       responseSchema: SCHEMA as unknown as object,
       temperature: 0.2,
     },

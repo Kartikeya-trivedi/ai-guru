@@ -1,5 +1,4 @@
-import { geminiGenerateJson } from "../providers/gemini/text";
-import { ASSESSMENT_MODEL, ASSESSMENT_FALLBACKS } from "../providers/gemini/models";
+import { generateJson } from "../providers/reasoning";
 import type { AnswerAssessment } from "./types";
 
 /**
@@ -63,11 +62,11 @@ export async function assessAnswer(
   },
   opts: { apiKey: string; model?: string },
 ): Promise<AnswerAssessment & { atKnowledgeLimit: boolean }> {
-  return geminiGenerateJson<AnswerAssessment & { atKnowledgeLimit: boolean }>(
+  return generateJson<AnswerAssessment & { atKnowledgeLimit: boolean }>(
     {
+      role: "assessment",
       apiKey: opts.apiKey,
-      model: opts.model ?? ASSESSMENT_MODEL,
-      fallbackModels: ASSESSMENT_FALLBACKS,
+      model: opts.model,
       responseSchema: ASSESSMENT_SCHEMA as unknown as object,
       temperature: 0.1,
     },

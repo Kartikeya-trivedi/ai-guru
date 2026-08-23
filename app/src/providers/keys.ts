@@ -11,10 +11,11 @@ import { invoke } from "@tauri-apps/api/core";
 const isTauri = (): boolean =>
   typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
-export type ProviderId = "gemini" | "xai" | "elevenlabs" | "simli";
+export type ProviderId = "gemini" | "groq" | "xai" | "elevenlabs" | "simli";
 
 const ENV_FALLBACK: Record<ProviderId, string | undefined> = {
   gemini: import.meta.env.GEMINI_API_KEY,
+  groq: import.meta.env.GROQ_API_KEY,
   xai: import.meta.env.XAI_API_KEY,
   elevenlabs: import.meta.env.ELEVENLABS_API_KEY,
   simli: import.meta.env.SIMLI_API_KEY,

@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react";
 import { deleteKey, getKey, inDesktopApp, setKey, type ProviderId } from "../providers/keys";
+import {
+  getReasoningProvider,
+  setReasoningProvider,
+  type ReasoningProviderId,
+} from "../providers/reasoning";
 
 /**
  * BYOK settings. Keys go straight to the OS credential store via Rust —
@@ -22,17 +27,10 @@ const PROVIDERS: {
     required: true,
   },
   {
-    id: "xai",
-    name: "xAI (Grok)",
-    role: "Alternative text model. Voice via the fallback pipeline.",
-    where: "console.x.ai",
-    required: false,
-  },
-  {
-    id: "elevenlabs",
-    name: "ElevenLabs",
-    role: "Speech for text-only providers",
-    where: "elevenlabs.io",
+    id: "groq",
+    name: "Groq",
+    role: "Optional alternative for grading, judging and reports — often faster and cheaper than Gemini. The interviewer's voice stays on Gemini either way.",
+    where: "console.groq.com → API Keys",
     required: false,
   },
   {
@@ -111,6 +109,58 @@ function KeyRow({ p }: { p: (typeof PROVIDERS)[number] }) {
   );
 }
 
+/**
+ * Which provider does the thinking. Voice is not offered as a choice here
+ * because there isn't one: Gemini Live is the only native speech-to-speech
+ * among these, and routing voice through Groq would mean speech-to-text,
+ * then text, then text-to-speech — three round trips where Gemini does one.
+ * Putting that behind a dropdown would hide a large latency regression from
+ * the person least able to diagnose it.
+ */
+function TextProviderChoice() {
+  const [provider, setProvider] = useState<ReasoningProviderId>(getReasoningProvider);
+  const [groqKey, setGroqKey] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    void getKey("groq").then((k) => setGroqKey(Boolean(k)));
+  }, [provider]);
+
+  const choose = (id: ReasoningProviderId) => {
+    setReasoningProvider(id);
+    setProvider(id);
+  };
+
+  return (
+    <div className="reveal panel">
+      <div style={{ fontSize: 14, fontWeight: 500 }}>Grading, judging &amp; reports</div>
+      <div className="muted small" style={{ marginTop: 3 }}>
+        The model that scores your answers and writes the report. Separate from the
+        interviewer's voice, which is always Gemini.
+      </div>
+
+      <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+        {(["gemini", "groq"] as ReasoningProviderId[]).map((id) => (
+          <button
+            key={id}
+            className={provider === id ? "btn" : "btn btn-ghost"}
+            style={{ flex: 1, marginTop: 0 }}
+            onClick={() => choose(id)}
+          >
+            {id === "gemini" ? "Gemini" : "Groq"}
+          </button>
+        ))}
+      </div>
+
+      {provider === "groq" && groqKey === false && (
+        <div className="notice" style={{ marginTop: 12 }}>
+          Groq is selected but no Groq key is saved below — grading will fail until you add one
+          or switch back to Gemini.
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function SettingsPanel({ onBack }: { onBack: () => void }) {
   return (
     <div className="center">
@@ -140,6 +190,8 @@ export function SettingsPanel({ onBack }: { onBack: () => void }) {
             store them securely.
           </div>
         )}
+
+        <TextProviderChoice />
 
         {PROVIDERS.map((p) => (
           <KeyRow key={p.id} p={p} />

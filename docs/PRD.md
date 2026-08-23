@@ -116,7 +116,8 @@ sales/manual licenses).
 - **Phase 5 — report** ✅ built — thread/assessment aggregation → structured
   report grounded in depth-per-thread, in-app view + print-to-PDF.
 - **Phase 6 — settings & providers** ✅ BYOK UI + OS keychain via Rust.
-  Grok pipeline fallback and OpenAI-compat adapter still to do.
+  Gemini and Groq both serve the reasoning role, switchable in Settings.
+  A voice provider other than Gemini is not planned — see the ledger.
 - **Phase 7 — hardening:** E2E test suite, walkthroughs, installer builds
   (Windows first), latency/robustness passes. **Blocking item: Tauri/
   WebView2 microphone access** — see VALIDATION.md; foundational, not polish.
@@ -193,6 +194,10 @@ local-first, and pay hourly whether anyone interviews or not), require every
 candidate to own a fast GPU, or call a paid API per minute. At V1 volumes the
 paid API is both cheaper and simpler than self-hosting — and the free animated
 face stays the default, so neither cost applies unless the user opts in.
+| Groq as the second provider, for text only | Gemini Live is the only native speech-to-speech we have. Reaching voice through Groq means STT → LLM → TTS, three sequential round trips against a measured 544 ms single-hop budget. A dropdown that quietly triples latency is worse than no dropdown |
+| Groq's gpt-oss models, not Llama | Groq shut down `llama-3.3-70b-versatile` and `llama-3.1-8b-instant` for free and developer tier on 2026-08-16 — the tier every BYOK user is on. gpt-oss is Groq's own recommended replacement AND the only family there supporting strict schema-constrained decoding, which the assessment path needs |
+| Schema translated, not loosened, for Groq | Groq's best-effort JSON mode accepts our Gemini schemas but may return valid JSON that doesn't match them. Assessment output drives the depth controller and the report, so we translate to strict mode instead — optional fields become nullable rather than absent |
+| xAI and ElevenLabs key rows removed | They collected keys that no code path read. A settings screen that asks for credentials it never uses is a lie told to a paying customer |
 | Depth controller as code, not prompt | "Drill deeper" as an explicit state machine is testable, tunable, and can't be prompt-drifted away |
 | depth.ts ends threads; the clock ends stages | A stage used to end the moment its topic queue emptied, so answering efficiently made the interview *shorter* — an hour of design finished in fifteen minutes. Stages now refill from a reserve of resume-derived topics while time remains |
 | Interview length is a user choice, not a constant | Not everyone has an hour to give. The picker scales the existing per-stage budgets, so a 30-minute interview is the same interview compressed, not a truncated one that never reaches the technical round |

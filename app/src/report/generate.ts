@@ -1,5 +1,4 @@
-import { geminiGenerateJson } from "../providers/gemini/text";
-import { REASONING_MODEL, REASONING_FALLBACKS } from "../providers/gemini/models";
+import { generateJson } from "../providers/reasoning";
 import type { CandidateModel, JobTarget, Thread } from "../engine/types";
 import type { InterviewReport } from "./types";
 
@@ -130,11 +129,11 @@ ${
   }=== TRANSCRIPT ===
 ${renderTranscript(input.transcript)}`;
 
-  const generated = await geminiGenerateJson<Omit<InterviewReport, "sessionId" | "createdAt">>(
+  const generated = await generateJson<Omit<InterviewReport, "sessionId" | "createdAt">>(
     {
+      role: "reasoning",
       apiKey: opts.apiKey,
-      model: opts.model ?? REASONING_MODEL,
-      fallbackModels: REASONING_FALLBACKS,
+      model: opts.model,
       responseSchema: REPORT_SCHEMA as unknown as object,
       temperature: 0.3,
     },
