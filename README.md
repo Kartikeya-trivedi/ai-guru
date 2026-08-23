@@ -26,15 +26,28 @@ opposite:
   don't know" plainly is treated as a strength, not evasion.
 - **A report you can act on**, grounded in evidence — not a score out of ten.
 
+## Download
+
+**[Latest release](https://github.com/Kartikeya-trivedi/ai-guru/releases/latest)**
+— Windows installer.
+
+It is not code-signed yet, so SmartScreen will warn on first run
+("More info" then "Run anyway"). You need a Google Gemini API key **with
+billing enabled**; a free-tier key runs out partway through an interview.
+
 ## Status
 
-V1 in progress. Voice, resume pipeline, interview engine, DSA rounds,
-reports, and BYOK settings are built. See [docs/PRD.md](docs/PRD.md) for
-scope and [docs/VALIDATION.md](docs/VALIDATION.md) for what's actually been
-measured versus assumed.
+Public beta. Voice, resume pipeline, interview engine, DSA rounds, reports,
+video/screen share, and BYOK settings are built. See
+[docs/PRD.md](docs/PRD.md) for scope and
+[docs/VALIDATION.md](docs/VALIDATION.md) for what's actually been measured
+versus assumed.
 
-Known open risk: microphone access in the packaged Tauri/WebView2 window is
-validated in Chrome but not yet in the desktop shell.
+Honest about what is not settled: the installer is unsigned, the realtime
+voice model is a `-preview` one that Google can retire, and while the app has
+been driven through interviews in the dev shell, it has not yet been through a
+sustained human feel-test on the installed build — which is the one thing that
+decides whether any of this works.
 
 ## Running it
 
