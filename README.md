@@ -28,8 +28,9 @@ opposite:
 
 ## Download
 
-**[Latest release](https://github.com/Kartikeya-trivedi/ai-guru/releases/latest)**
-— Windows installer.
+**[Releases](https://github.com/Kartikeya-trivedi/ai-guru/releases)** — Windows
+installer. (Linking the list rather than `/latest`, which GitHub resolves only
+to stable releases and would 404 while this is still in beta.)
 
 It is not code-signed yet, so SmartScreen will warn on first run
 ("More info" then "Run anyway"). You need a Google Gemini API key **with
