@@ -3,7 +3,7 @@
   "productName": "Interview",
   "mainBinaryName": "Interview",
   "version": "0.1.0",
-  "identifier": "com.idcoc.app",
+  "identifier": "io.github.kartikeya-trivedi.ai-guru",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
