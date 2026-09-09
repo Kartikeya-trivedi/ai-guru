@@ -98,6 +98,40 @@ beforeEach(() => {
   h.openGeminiLive.mockReset();
 });
 
+describe("final report evidence", () => {
+  it("waits for in-flight grading after stopping audio", async () => {
+    let resolveGrade!: (value: object) => void;
+    h.assess.mockImplementation(() => new Promise(resolve => { resolveGrade = resolve; }));
+    h.openGeminiLive.mockResolvedValue(fakeChannel(oneExchange("Why a queue?", "To absorb spikes.", "What about latency?")));
+    const session = new InterviewSession({ apiKey: "k", resume: RESUME, jobTarget: { role: "AI Engineer", seniority: "mid" } }, callbacks());
+    await session.start(); await flush(4);
+    session.stop();
+    let settled = false;
+    const final = session.settleAssessments().then(() => { settled = true; });
+    await Promise.resolve();
+    expect(settled).toBe(false);
+    resolveGrade({ quality: "strong", note: "Explained burst absorption", atKnowledgeLimit: false });
+    await final;
+    expect(session.getThreads()[0].assessments).toHaveLength(1);
+    expect(session.getCandidateModel().verifiedStrengths).toContain("Explained burst absorption");
+  });
+
+  it("preserves and grades a last answer without a model turn-complete", async () => {
+    h.assess.mockResolvedValue({ quality: "adequate", note: "Understood buffering", atKnowledgeLimit: false });
+    h.openGeminiLive.mockResolvedValue(fakeChannel([
+      { type: "transcript", role: "assistant", text: "Why a queue?", final: true },
+      { type: "turn-complete" },
+      { type: "transcript", role: "user", text: "To absorb spikes.", final: true },
+    ]));
+    const session = new InterviewSession({ apiKey: "k", resume: RESUME, jobTarget: { role: "AI Engineer", seniority: "mid" } }, callbacks());
+    await session.start(); await flush(4);
+    session.stop(); session.stop();
+    await session.settleAssessments();
+    expect(h.assess).toHaveBeenCalledTimes(1);
+    expect(session.getTranscript()).toContainEqual({ role: "user", text: "To absorb spikes." });
+  });
+});
+
 describe("InterviewSession Q/A pairing", () => {
   it("grades an answer against the question it actually answered, not the follow-up", async () => {
     // The off-by-one bug: within one turn-complete window the buffers hold

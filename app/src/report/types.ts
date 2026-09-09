@@ -5,7 +5,7 @@
 
 export interface DimensionScore {
   /** 1–5 with written justification; never a bare number. */
-  score: 1 | 2 | 3 | 4 | 5;
+  score: 1 | 2 | 3 | 4 | 5 | null;
   justification: string;
   evidence: string[]; // quotes/moments from the transcript
 }

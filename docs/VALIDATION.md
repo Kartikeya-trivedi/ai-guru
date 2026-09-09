@@ -3,6 +3,37 @@
 Evidence for the gates in [PRD.md](PRD.md). Claims here are measured, not
 assumed — re-run the harnesses before trusting them after a provider change.
 
+## 2026-09-09 — local portrait and reliability changes
+
+Follow-up: the portrait now uses a local photographic animation rig with an
+audio-driven mouth, blinks, and subtle smile/brow changes. **230 tests pass across
+18 files**, including four new motion tests (speech/silence, interruption release,
+idle blinking, reduced motion, and invalid-input handling). Production build and
+bundle-secret check pass. Browser preview visibly verified open/closed mouth and
+blink frames with no console errors. This is a silent synthetic-envelope visual
+check; the installed app's real speech/face experience still needs a human run.
+
+- Production build and bundle-secret check passed. Full unit/integration suite:
+  **226 tests passed across 17 files**.
+- New real-SQLite integration test exercises the shipped schema, saves a report
+  draft, resets application module state, and recovers the same input and target
+  role. This validates queries; it does not validate Tauri permissions on an
+  installed build.
+- New report tests enforce missing-evidence scores, short-interview coverage,
+  preserved covered dimensions, and nullable schema translation.
+- New session tests verify that final grading is awaited and that the last
+  answer survives ending before model turn-complete.
+- Browser design preview checked with the real room component: local human
+  portrait, speaking indicator, leave/cancel controls, and narrow-window layout.
+  Preview uses demonstration data and no microphone, provider call, or database.
+
+Still unverified in this change: packaged-app microphone access, live full-session
+latency, grading agreement with human reviewers, and installed-app history flows.
+The historical **544 ms** below is a short **text-input → first generated audio**
+spike, not end-of-user-speech → audible playback p95. The five assessment fixtures
+are regression examples, not evidence of general grading accuracy. Those broader
+release gates remain open.
+
 ## Phase 1 — voice spike (go/no-go for the product)
 
 **Gate:** conversation must feel human. Target **p95 first-audio < 800 ms**.

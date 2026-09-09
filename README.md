@@ -4,7 +4,8 @@ An AI interviewer that behaves like a senior engineer — reads your resume,
 interviews you over voice, drills until it finds the edge of what you know,
 and writes you an honest evaluation.
 
-Desktop app. Bring your own API keys. Everything stays on your machine.
+Desktop app. Bring your own API keys. Files are stored locally; interview
+content is processed by your selected AI providers.
 
 ## Why this exists
 
@@ -16,7 +17,7 @@ opposite:
   into structured sections and the probe angles are worked out *before* you
   speak — the way a real interviewer arrives having read it.
 - **Voice, not typing.** Hesitation, pressure, and speaking ability are part
-  of what's being tested. Measured at **544 ms** to first response, with
+  of what's being tested. A short text-to-audio spike measured **544 ms** to first response, with
   barge-in — you can cut it off mid-sentence like a real conversation.
 - **It digs.** Answer well and it goes a layer deeper. Answer vaguely and it
   gives you one fair chance, then moves on. Hit your genuine limit and it
@@ -104,3 +105,11 @@ Your resume, transcripts, and reports live in a local SQLite database. API
 keys go to your OS credential manager, never to disk in this app. Audio
 streams directly from your machine to the provider your key pays for — there
 is no server of ours in the path.
+
+Resume text, job descriptions, transcripts, and relevant interview evidence
+are also sent to the configured AI providers for parsing, interviewing, and
+evaluation. Optional camera/screen frames go to the voice provider. The default
+fictional human face is bundled locally and needs no avatar service; its mouth
+follows speaker audio, with blinks and subtle expressions. This lightweight rig
+does not recognise phonemes. Streamed neural lip-sync remains an explicit
+optional choice. See [local face implementation](docs/LOCAL-FACE.md).

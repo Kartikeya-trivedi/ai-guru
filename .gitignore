@@ -38,3 +38,6 @@ Thumbs.db
 
 # Local Claude Code tooling — not part of the product
 .claude/
+
+# Local neural-avatar runtime and downloaded models (not installer assets)
+.local-avatar/

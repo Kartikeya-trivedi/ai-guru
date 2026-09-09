@@ -17,7 +17,7 @@ import type { InterviewReport } from "./types";
 const DIMENSION = {
   type: "object",
   properties: {
-    score: { type: "integer", minimum: 1, maximum: 5 },
+    score: { type: "integer", minimum: 1, maximum: 5, nullable: true },
     justification: { type: "string" },
     evidence: { type: "array", items: { type: "string" } },
   },
@@ -58,6 +58,8 @@ HOW TO READ THE THREADS. Each thread is one line of questioning with a depth (ho
 - "atKnowledgeLimit" reached early on a topic they CLAIM as a skill → the gap that matters most
 
 SCORING (1-5). Be honest and calibrated to the target seniority. A 3 is a solid, hireable-with-reservations answer set, not a failure. Do not inflate: a report that tells everyone they're great is worthless and the candidate paid for the truth. Equally, do not manufacture harshness — if they were strong, say so plainly.
+
+INSUFFICIENT EVIDENCE. Set score to null and explain "Not assessed" when a dimension lacks direct evidence. A single brief answer is not enough to establish readiness. Never infer behavioural ability from a technical answer. Only give an overall readiness verdict for the areas actually covered; explicitly name missing coverage.
 
 TONE. Direct, specific, and humane. Write to the candidate as a respected peer ("you"), not about them. No corporate hedging, no motivational filler. They can handle the truth if it's specific and actionable.
 
@@ -144,8 +146,30 @@ ${renderTranscript(input.transcript)}`;
   );
 
   return {
-    ...generated,
+    ...applyCoverage(generated, input.threads),
     sessionId: input.sessionId,
     createdAt: new Date().toISOString(),
   };
+}
+
+/** Coverage is enforced in code, even if the model tries to score every field. */
+export function applyCoverage<T extends Omit<InterviewReport, "sessionId" | "createdAt">>(report: T, threads: Thread[]): T {
+  const result = { ...report };
+  const coverage = {
+    projectDepth: threads.filter(t => t.stage === "projects" || t.stage === "resume"),
+    technicalKnowledge: threads.filter(t => t.stage === "technical"),
+    behavioralFit: threads.filter(t => t.stage === "behavioral"),
+    communication: threads,
+  };
+  const missing: string[] = [];
+  for (const key of Object.keys(coverage) as (keyof typeof coverage)[]) {
+    const count = coverage[key].reduce((n, t) => n + t.assessments.length, 0);
+    const dim = report[key];
+    if (count < 2 || !dim?.evidence?.length || !Number.isInteger(dim.score) || (dim.score ?? 0) < 1 || (dim.score ?? 6) > 5) {
+      result[key] = { score: null, justification: "Not assessed — insufficient evidence from this interview.", evidence: [] };
+      missing.push(key.replace(/([A-Z])/g, " $1").toLowerCase());
+    }
+  }
+  if (missing.length) result.interviewReadiness = `Partial interview: there is not enough evidence for an overall readiness verdict. Not assessed: ${missing.join(", ")}. Review the assessed areas below.`;
+  return result;
 }

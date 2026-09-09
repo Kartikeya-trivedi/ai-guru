@@ -1,18 +1,18 @@
 import { useEffect, useRef, useState } from "react";
-import { Avatar } from "./avatar/Avatar";
+import { Portrait } from "./avatar/Portrait";
 
 /**
  * The video surface of the interview room.
  *
  * The interviewer has two possible faces:
  *
- *  - PHOTOREAL, when a Simli key is configured: a real streamed video face,
+ *  - STREAMED, when selected with a Simli key: a streamed video face,
  *    lip-synced by the service from our Gemini audio. Costs per minute and
  *    needs the network.
- *  - STYLISED, otherwise: the local SVG face lip-synced from output RMS.
- *    Free, offline, and the automatic fallback if the service drops.
+ *  - LOCAL, otherwise: a bundled photographic face rig with mouth motion,
+ *    blinking and subtle expressions. No runtime avatar service. Also the fallback.
  *
- * The photoreal <video>/<audio> pair stays mounted even while stylised is
+ * The photoreal <video>/<audio> pair stays mounted even while the portrait is
  * showing, because the session needs real DOM elements to hand the SDK before
  * a connection exists. They are hidden rather than conditionally rendered —
  * unmounting would kill a live stream on any re-render.
@@ -74,7 +74,7 @@ export function VideoStage({
   onToggleCamera: () => void;
   onToggleScreen: () => void;
   screenSupported: boolean;
-  /** True once the streamed face is live; false shows the stylised fallback. */
+  /** True once the streamed face is live; false shows the local portrait. */
   photorealActive?: boolean;
   photorealVideoRef?: React.RefObject<HTMLVideoElement | null>;
   photorealAudioRef?: React.RefObject<HTMLAudioElement | null>;
@@ -105,8 +105,8 @@ export function VideoStage({
               className="photoreal-video"
               style={{ display: photorealActive ? "block" : "none" }}
             />
-            {!photorealActive && <Avatar level={level} speaking={speaking} />}
-            <div className="presence-label eyebrow">
+            {!photorealActive && <Portrait level={level} speaking={speaking} />}
+            <div className="presence-label eyebrow" style={{ display: photorealActive ? undefined : "none" }}>
               {speaking ? "Interviewer speaking" : "Interviewer listening"}
             </div>
           </div>
@@ -128,7 +128,7 @@ export function VideoStage({
         {screen && (
           <div className="tile">
             <div className="avatar-frame">
-              <Avatar level={level} speaking={speaking} compact />
+              <Portrait level={level} speaking={speaking} compact />
             </div>
             <span className="tile-tag">Interviewer</span>
           </div>

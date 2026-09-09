@@ -2,11 +2,12 @@ import Database from "@tauri-apps/plugin-sql";
 import type { ParsedResume } from "../resume/types";
 import type { JobTarget, Thread } from "../engine/types";
 import type { InterviewReport } from "../report/types";
+import type { ReportInput } from "../report/generate";
 
 /**
  * Local-first storage. Resume sections, sessions, transcripts, threads and
- * reports never leave the machine — the only network traffic this product
- * makes is the provider calls the user's own key pays for.
+ * reports are stored locally. Resume text and interview content are sent to
+ * the AI providers the user's own key pays for to perform the interview.
  *
  * Schema and migrations live in src-tauri/src/lib.rs (the plugin owns them).
  */
@@ -215,4 +216,16 @@ export async function loadReport(sessionId: string): Promise<InterviewReport | n
     [sessionId],
   );
   return rows.length ? (JSON.parse(rows[0].report_json) as InterviewReport) : null;
+}
+
+/** Persist the exact report inputs before the network call, so restart can retry. */
+export async function saveReportDraft(input: ReportInput): Promise<void> {
+  const d = await getDb();
+  await d.execute("UPDATE sessions SET config_json = json_set(config_json, '$.reportInput', json($1)) WHERE id = $2", [JSON.stringify(input), input.sessionId]);
+}
+
+export async function loadReportDraft(sessionId: string): Promise<ReportInput | null> {
+  const d = await getDb();
+  const rows = await d.select<{ config_json: string }[]>("SELECT config_json FROM sessions WHERE id = $1", [sessionId]);
+  return rows.length ? JSON.parse(rows[0].config_json).reportInput ?? null : null;
 }

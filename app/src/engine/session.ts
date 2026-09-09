@@ -173,6 +173,7 @@ export class InterviewSession {
    *  loses report evidence for a real person. */
   private assessQueue: { question: string; answer: string }[] = [];
   private draining = false;
+  private assessmentTask: Promise<void> = Promise.resolve();
   /** Set by stop(), so an event-loop exit can tell a clean end from a drop. */
   private stopped = false;
 
@@ -207,6 +208,16 @@ export class InterviewSession {
 
   getCandidateModel(): CandidateModel {
     return { ...this.candidate };
+  }
+
+  /** Final write-up waits for answers already in flight after audio stops. */
+  async settleAssessments(): Promise<void> {
+    await this.assessmentTask;
+  }
+
+  getTranscript(): { role: "user" | "assistant"; text: string }[] {
+    return this.history.filter(m => m.role === "user" || m.role === "assistant")
+      .map(m => ({ role: m.role as "user" | "assistant", text: m.content }));
   }
 
   async start(): Promise<void> {
@@ -402,6 +413,7 @@ export class InterviewSession {
   private async pump(): Promise<void> {
     if (!this.channel) return;
     for await (const ev of this.channel.events()) {
+      if (this.stopped) break;
       switch (ev.type) {
         case "audio":
           if (this.tracker.markModelAudio()) this.cb.onLatency(this.tracker.summary());
@@ -579,7 +591,7 @@ export class InterviewSession {
     // Queue rather than drop. A slow assessment must delay steering, never
     // delete an answer — that answer is a real person's report evidence.
     this.assessQueue.push({ question, answer });
-    void this.drainAssessments();
+    if (!this.draining) this.assessmentTask = this.drainAssessments();
   }
 
   /** Process queued exchanges one at a time, off the audio path. */
@@ -623,6 +635,9 @@ export class InterviewSession {
       this.cb.onThreadUpdate(this.getThreads());
       // A recovered assessment clears any lingering transient notice.
       this.cb.onNotice("");
+
+      // Keep final evidence, but never steer a session that has ended.
+      if (this.stopped) return;
 
       switch (move.kind) {
         case "drill":
@@ -895,7 +910,10 @@ Walk through it with them: complexity, edge cases, what would break. Reason abou
   }
 
   stop(): void {
+    if (this.stopped) return;
     this.stopped = true;
+    // Preserve a last answer even if the user leaves before model turn-complete.
+    if (this.userTurn.trim() || this.assistantTurn.trim()) this.onTurnComplete();
     this.integrity.stop();
     // Release the camera and screen explicitly — a lingering capture leaves
     // the OS "in use" indicator lit, which reads as the app spying after the

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { extractPdfText } from "../resume/extract";
 import { parseResume } from "../resume/parse";
 import { InterviewSession } from "../engine/session";
-import { generateReport } from "../report/generate";
+import { generateReport, type ReportInput } from "../report/generate";
 import { DEFAULT_STAGES } from "../engine/stages";
 import { getKey, hasKey, inDesktopApp } from "../providers/keys";
 import * as db from "../db";
@@ -11,7 +11,8 @@ import { SettingsPanel } from "./SettingsPanel";
 import { KeyOnboarding } from "./KeyOnboarding";
 import { CodingRound } from "./CodingRound";
 import { VideoStage } from "./VideoStage";
-import { Avatar } from "./avatar/Avatar";
+import { Portrait } from "./avatar/Portrait";
+import { HistoryPanel } from "./HistoryPanel";
 import { screenCaptureSupported } from "../video/capture";
 import { describeIntegrity } from "../engine/proctor";
 import { extractRequirements } from "../engine/jd";
@@ -20,9 +21,10 @@ import { judgeSolution, type CodeVerdict } from "../dsa/judge";
 import type { Problem } from "../dsa/problems";
 import type { Language, RunOutcome } from "../dsa/harness";
 import type { ParsedResume } from "../resume/types";
-import type { CandidateModel, JobTarget, StageDefinition, Thread } from "../engine/types";
+import type { JobTarget, StageDefinition, Thread } from "../engine/types";
 import type { InterviewReport } from "../report/types";
 import "./theme.css";
+import "./portrait.css";
 
 type View =
   | "booting"
@@ -35,9 +37,10 @@ type View =
   | "generating"
   | "report"
   | "report-failed"
+  | "history"
   | "settings";
 
-const ROLES = ["AI Engineer", "Infra Engineer", "Cloud Engineer", "DevOps Engineer"];
+const ROLES = ["Software Engineer", "Backend Engineer", "Frontend Engineer", "AI Engineer", "Infra Engineer", "Cloud Engineer", "DevOps Engineer"];
 const SENIORITIES: JobTarget["seniority"][] = ["intern", "junior", "mid", "senior", "staff"];
 
 /**
@@ -56,6 +59,13 @@ export function InterviewApp() {
   const [error, setError] = useState<string | null>(null);
   /** Non-fatal, transient status (e.g. an assessment degraded). Not red. */
   const [notice, setNotice] = useState<string | null>(null);
+  const [storageError, setStorageError] = useState<string | null>(null);
+  const writeQueue = useRef<Promise<void>>(Promise.resolve());
+  const queueWrite = useCallback((write: () => Promise<void>) => {
+    writeQueue.current = writeQueue.current.then(write).catch(() => {
+      setStorageError("Some interview data could not be saved. Keep this window open; we'll try saving the complete write-up inputs when you finish.");
+    });
+  }, []);
 
   const [resume, setResume] = useState<ParsedResume | null>(null);
   const [resumeId, setResumeId] = useState<string | null>(null);
@@ -75,7 +85,8 @@ export function InterviewApp() {
   const [dragging, setDragging] = useState(false);
 
   /** Opt-in before the interview starts; the toggle during it lives on the stage. */
-  const [useCamera, setUseCamera] = useState(true);
+  const [useCamera, setUseCamera] = useState(false);
+  const [useStreamedFace, setUseStreamedFace] = useState(false);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const [screenStream, setScreenStream] = useState<MediaStream | null>(null);
   /** Drives the interviewer presence animation — true while audio is arriving. */
@@ -98,11 +109,9 @@ export function InterviewApp() {
    * after an hour of work — so its inputs must survive a failed attempt to
    * make a retry possible. Without this, one network blip discards the hour.
    */
-  const pendingReportRef = useRef<{
-    threads: Thread[];
-    candidateModel: CandidateModel;
-    integrityNotes: string[] | null;
-  } | null>(null);
+  const pendingReportRef = useRef<ReportInput | null>(null);
+  const startingRef = useRef(false);
+  const finishingRef = useRef(false);
 
   const sessionRef = useRef<InterviewSession | null>(null);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
@@ -154,7 +163,9 @@ export function InterviewApp() {
   }, [persistedDb]);
 
   const start = useCallback(async () => {
-    if (!resume) return;
+    if (!resume || startingRef.current) return;
+    startingRef.current = true;
+    try {
     const apiKey = await getKey("gemini");
     if (!apiKey) {
       setError("Add your Gemini key to begin.");
@@ -168,6 +179,9 @@ export function InterviewApp() {
     setReport(null);
     setError(null);
     setNotice(null);
+    setStorageError(null);
+    setProblem(null);
+    setVerdict(null);
     pendingReportRef.current = null;
     setView("live");
 
@@ -188,8 +202,9 @@ export function InterviewApp() {
       setSessionId(sid);
     }
 
-    // Optional and separately keyed — absent, the local stylised face is used.
-    const simliKey = await getKey("simli");
+    // A saved key is used only when streamed video is explicitly selected.
+    const simliKey = useStreamedFace ? await getKey("simli") : null;
+    if (useStreamedFace && !simliKey) setNotice("No streamed-video key is saved. Using the local portrait.");
     const session = new InterviewSession(
       {
         apiKey,
@@ -212,7 +227,10 @@ export function InterviewApp() {
         onStageChange: setStage,
         onThreadUpdate: (t) => {
           setThreads(t);
-          if (sid) void db.saveThreads(sid, t).catch(() => {});
+          if (sid) {
+            const snapshot = structuredClone(t);
+            queueWrite(() => db.saveThreads(sid!, snapshot));
+          }
         },
         onLatency: (s) => setP95(s.p95),
         onError: setError,
@@ -235,15 +253,14 @@ export function InterviewApp() {
         },
         // Persist the transcript at turn boundaries so it survives teardown.
         onTurnComplete: (r, text, stage) => {
-          if (sid) void db.saveTurn(sid, r, text, stage).catch(() => {});
+          if (sid) queueWrite(() => db.saveTurn(sid!, r, text, stage));
         },
       },
     );
     sessionRef.current = session;
-    try {
       await session.start();
       // After start(), so a slow or failed avatar never delays the voice
-      // interview. A failure here is a notice; the stylised face carries on.
+      // interview. A failure here is a notice; the local portrait carries on.
       if (session.wantsPhotoreal() && photorealVideoRef.current && photorealAudioRef.current) {
         void session
           .attachPhotorealAvatar(photorealVideoRef.current, photorealAudioRef.current)
@@ -256,8 +273,10 @@ export function InterviewApp() {
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setView("brief");
+    } finally {
+      startingRef.current = false;
     }
-  }, [resume, resumeId, role, seniority, jd, persistedDb]);
+  }, [resume, resumeId, role, seniority, jd, persistedDb, lengthMinutes, useCamera, useStreamedFace, queueWrite]);
 
   /**
    * Generate the report from retained inputs. Separated from finish() so a
@@ -265,51 +284,59 @@ export function InterviewApp() {
    * already captured; only the network call failed.
    */
   const produceReport = useCallback(async () => {
-    if (!resume) return;
     const pending = pendingReportRef.current;
     if (!pending) return;
 
     setView("generating");
     setError(null);
     try {
+      if (persistedDb) {
+        await writeQueue.current;
+        try {
+          await db.saveReportDraft(pending);
+          setStorageError(null);
+        } catch {
+          setStorageError("Couldn't save recovery data. Keep this window open and export the report before closing it.");
+        }
+      }
       const apiKey = (await getKey("gemini"))!;
       const generated = await generateReport(
-        {
-          sessionId: sessionId ?? "local",
-          candidateName: resume.name,
-          jobTarget: { role, seniority, jobDescription: jd || undefined },
-          threads: pending.threads,
-          candidateModel: pending.candidateModel,
-          integrityNotes: pending.integrityNotes,
-          transcript,
-        },
+        pending,
         { apiKey },
       );
       setReport(generated);
-      if (sessionId) {
-        await db.saveReport(generated).catch(() => {});
-        await db.endSession(sessionId).catch(() => {});
+      if (persistedDb) {
+        try {
+          await db.saveReport(generated);
+          await db.endSession(pending.sessionId);
+        } catch {
+          setStorageError("Your report is ready, but could not be saved. Export a PDF now or use Retry save.");
+        }
       }
       pendingReportRef.current = null;
       setView("report");
     } catch (e) {
       // The interview is NOT lost — inputs are retained for retry.
-      setError(`Report generation failed: ${e instanceof Error ? e.message : String(e)}. Your interview is saved — retry below.`);
+      setError(`Report generation failed: ${e instanceof Error ? e.message : String(e)}. You can retry here without repeating the interview. Keep this window open if a save warning is shown.`);
       setView("report-failed");
     }
-  }, [resume, sessionId, role, seniority, jd, transcript]);
+  }, [persistedDb]);
 
   const finish = useCallback(async () => {
     const session = sessionRef.current;
-    if (!session || !resume) return;
+    if (!session || !resume || finishingRef.current) return;
+    finishingRef.current = true;
+    try {
 
-    const finalThreads = session.getThreads();
-    const candidateModel = session.getCandidateModel();
     // Captured before stop(), which tears the monitor down.
     const integrityNotes = describeIntegrity(session.getIntegrityEvents());
     session.stop();
     sessionRef.current = null;
-    if (sessionId) void db.endSession(sessionId).catch(() => {});
+    setView("generating");
+    await session.settleAssessments();
+    const finalThreads = session.getThreads();
+    const candidateModel = session.getCandidateModel();
+    if (sessionId) queueWrite(() => db.endSession(sessionId));
 
     // Gate on ASSESSMENTS, not thread count. A thread is created before its
     // assessment call, so a session where every assessment failed still has
@@ -321,9 +348,34 @@ export function InterviewApp() {
       return;
     }
 
-    pendingReportRef.current = { threads: assessedThreads, candidateModel, integrityNotes };
+    pendingReportRef.current = structuredClone({
+      sessionId: sessionId ?? "local", candidateName: resume.name,
+      jobTarget: { role, seniority, jobDescription: jd || undefined },
+      threads: assessedThreads, candidateModel, integrityNotes, transcript: session.getTranscript(),
+    });
     await produceReport();
-  }, [resume, sessionId, produceReport]);
+    } finally { finishingRef.current = false; }
+  }, [resume, sessionId, produceReport, role, seniority, jd, queueWrite]);
+
+  const openSavedSession = async (saved: db.SessionRow, savedResume: db.ResumeRow) => {
+    const [savedReport, draft, savedThreads, savedTurns] = await Promise.all([
+      db.loadReport(saved.id), db.loadReportDraft(saved.id), db.loadThreads(saved.id), db.loadTurns(saved.id),
+    ]);
+    if (!savedReport && !draft && !savedThreads.some(t => t.assessments.length)) {
+      throw new Error("This session has no saved assessments to build a report from. Start a new interview with the saved resume.");
+    }
+    setResume(savedResume.parsed); setResumeId(savedResume.id); setSessionId(saved.id);
+    setRole(saved.jobTarget.role); setSeniority(saved.jobTarget.seniority); setJd(saved.jobTarget.jobDescription ?? "");
+    setTranscript(savedTurns); setStorageError(null); setError(null);
+    setReport(savedReport);
+    if (savedReport) { setView("report"); return; }
+    pendingReportRef.current = draft ?? {
+      sessionId: saved.id, candidateName: saved.candidateName, jobTarget: saved.jobTarget,
+      threads: savedThreads, transcript: savedTurns,
+      candidateModel: { claims: [], verifiedStrengths: [], exposedGaps: [], communicationNotes: [] },
+    };
+    setView("report-failed");
+  };
 
   /** Stable across renders so the avatar's rAF loop never restarts. */
   const outputLevel = useCallback(() => sessionRef.current?.outputLevel() ?? 0, []);
@@ -421,10 +473,10 @@ export function InterviewApp() {
               ))}
             </div>
             <div className="spacer" />
-            <div className="readout">
+            <div className="readout" title={p95 == null ? "Measuring connection" : `Response latency: ${p95} ms (95th percentile)`}>
               {p95 != null && (
                 <span className="metric">
-                  P95 <b className={p95 > 800 ? "hot" : ""}>{p95}</b> MS
+                  {p95 > 800 ? "Connection is a little slow" : "Connected"}
                 </span>
               )}
             </div>
@@ -440,6 +492,9 @@ export function InterviewApp() {
         {view !== "live" && view !== "coding" && view !== "booting" && view !== "onboard" && (
           <>
             <div className="spacer" />
+            {persistedDb && <button className="btn btn-ghost" onClick={() => setView(view === "history" ? "upload" : "history")}>
+              {view === "history" ? "New interview" : "History"}
+            </button>}
             <button className="btn btn-ghost" onClick={() => setView(view === "settings" ? "upload" : "settings")}>
               {view === "settings" ? "Close" : "Settings"}
             </button>
@@ -447,7 +502,17 @@ export function InterviewApp() {
         )}
       </header>
 
+        {storageError && <div className="notice storage-warning" role="alert">
+          {storageError}
+          {report && persistedDb && <button className="btn" onClick={async () => {
+            try { await db.saveReport(report); await db.endSession(report.sessionId); setStorageError(null); }
+            catch { setStorageError("Still unable to save. Export the report as a PDF before closing this window."); }
+          }}>Retry save</button>}
+        </div>}
       <main className="main">
+        {view === "history" && <HistoryPanel onSession={openSavedSession} onResume={(saved) => {
+          setResume(saved.parsed); setResumeId(saved.id); setError(null); setView("brief");
+        }} />}
         {view === "booting" && (
           <div className="center">
             <div className="stack" style={{ marginTop: 60 }}>
@@ -470,7 +535,8 @@ export function InterviewApp() {
                 </h1>
                 <p className="muted" style={{ marginTop: 10 }}>
                   Your interviewer reads it before you speak — the same way a real one does. Questions come
-                  from your actual projects, not a question bank. It never leaves this machine.
+                  from your actual projects, not a question bank. Your resume is stored locally;
+                  its text is sent to your selected AI provider to prepare the interview.
                 </p>
               </div>
 
@@ -531,11 +597,11 @@ export function InterviewApp() {
           <div className="center">
             <div className="stack" style={{ marginTop: 60 }}>
               <span className="eyebrow">Report</span>
-              <h1 className="serif-title">That didn't go through.</h1>
+              <h1 className="serif-title">Your interview, ready to write up.</h1>
               {error && <div className="notice reveal">{error}</div>}
               <p className="muted">
-                Your interview is safe — only the write-up call failed. Retrying doesn't repeat the
-                interview, just the evaluation.
+                Generate an evaluation from the available interview evidence. Retrying only
+                repeats the write-up call and may incur provider usage charges.
               </p>
               <div style={{ display: "flex", gap: 10 }}>
                 <button className="btn btn-live" style={{ width: "auto" }} onClick={produceReport}>
@@ -552,7 +618,7 @@ export function InterviewApp() {
             <div className="stack">
               <div className="reveal">
                 <span className="eyebrow">Ready · {resume.name}</span>
-                <h1 className="serif-title" style={{ marginTop: 8 }}>Here's what caught my eye.</h1>
+                <h1 className="serif-title" style={{ marginTop: 8 }}>Make this practice count.</h1>
                 <p className="muted small" style={{ marginTop: 8 }}>
                   {resume.projects.length} projects · {resume.experience.length} roles · {resume.skills.length} skills
                 </p>
@@ -565,9 +631,7 @@ export function InterviewApp() {
                   <div key={p.name} className="trace">
                     <div className="trace-topic">{p.name}</div>
                     <ul style={{ margin: "8px 0 0", paddingLeft: 16 }}>
-                      {(p.probeAngles ?? []).map((a, i) => (
-                        <li key={i} className="muted small" style={{ margin: "5px 0" }}>{a}</li>
-                      ))}
+                      <li className="muted small">{p.description}</li>
                     </ul>
                   </div>
                 ))}
@@ -640,17 +704,26 @@ export function InterviewApp() {
                     }}
                   >
                     <div className="avatar-frame">
-                      {/* No audio yet, so the mouth rests closed — but it
-                          still blinks and drifts, which is the point. */}
-                      <Avatar level={() => 0} speaking={false} />
+                      {/* Same locally bundled portrait as the interview room. */}
+                      <Portrait level={() => 0} speaking={false} compact />
                     </div>
                   </div>
                   <p className="muted small" style={{ margin: 0 }}>
-                    A senior {role} who has read your resume and picked what to ask.
-                    They'll speak, listen, and follow up — so talk the way you would
-                    to a person, not a form.
+                    An AI interviewer preparing you for a {role} role. Speak naturally;
+                    they'll listen and ask follow-ups about your work.
+                    <span className="faint small" style={{ display: "block", marginTop: 8 }}>
+                      Fictional human portrait, included with the app. No extra service or avatar fee.
+                    </span>
                   </p>
                 </div>
+                <label className="field">
+                  <span className="eyebrow">Interviewer appearance</span>
+                  <select value={useStreamedFace ? "streamed" : "local"} onChange={e => setUseStreamedFace(e.target.value === "streamed")}>
+                    <option value="local">Animated human face — included, runs locally</option>
+                    <option value="streamed">Lip-synced video — optional Simli key</option>
+                  </select>
+                  <span className="faint small">Mouth movement follows the voice, with natural blinks and subtle expressions. Everything animates locally.</span>
+                </label>
               </div>
 
               <div className="reveal panel">
@@ -699,14 +772,7 @@ export function InterviewApp() {
               {threads.map((t) => (
                 <div key={t.id} className="trace">
                   <div className="trace-topic">{t.topic}</div>
-                  <div className="trace-meta">
-                    DEPTH {t.depth}{t.exhausted && " · LIMIT REACHED"}
-                  </div>
-                  <div className="trace-dots">
-                    {t.assessments.map((a, i) => (
-                      <span key={i} className={`dot ${a.quality}`} title={`${a.quality} — ${a.note}`} />
-                    ))}
-                  </div>
+                  <div className="trace-meta">{t.depth} follow-ups explored</div>
                 </div>
               ))}
 

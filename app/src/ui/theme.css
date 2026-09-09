@@ -172,7 +172,7 @@ h1, h2, h3 { margin: 0; font-weight: 400; }
 
 .split {
   display: grid;
-  grid-template-columns: 340px 1fr;
+  grid-template-columns: 260px minmax(0, 1fr);
   width: 100%;
   overflow: hidden;
 }
@@ -404,7 +404,7 @@ textarea { resize: vertical; font-family: var(--mono); font-size: 12px; }
 
 .stage {
   display: grid;
-  grid-template-columns: 1fr 220px;
+  grid-template-columns: minmax(0, 1fr) 160px;
   gap: 12px;
   margin-bottom: 16px;
 }
@@ -608,7 +608,7 @@ textarea { resize: vertical; font-family: var(--mono); font-size: 12px; }
   /* Meters are colour-coded on screen; on paper print the number too. */
   .meter { display: none; }
   .dim-row::after {
-    content: attr(data-score) " / 5";
+    content: attr(data-score);
     font: 500 11pt var(--mono);
   }
 

@@ -29,13 +29,13 @@ function Dimension({ label, blurb, dim }: { label: string; blurb: string; dim: D
   return (
     <div>
       {/* data-score carries the number into print, where the meter is hidden. */}
-      <div className="dim-row" data-score={dim.score}>
+      <div className="dim-row" data-score={dim.score == null ? "Not assessed" : `${dim.score} / 5`}>
         <div>
           <div className="dim-name">{label}</div>
           <div className="faint small mono" style={{ marginTop: 2 }}>{blurb}</div>
           <div className="dim-just">{dim.justification}</div>
         </div>
-        <Meter score={dim.score} />
+        {dim.score == null ? <span className="muted small">Not assessed</span> : <Meter score={dim.score} />}
       </div>
       {dim.evidence.length > 0 && (
         <div className="evidence">

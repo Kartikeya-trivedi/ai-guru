@@ -36,7 +36,7 @@ const PROVIDERS: {
   {
     id: "simli",
     name: "Simli — photoreal interviewer",
-    role: "Streams a real video face lip-synced to the interviewer's voice. Without it you get the built-in animated face, which is free and works offline.",
+    role: "Optional streamed lip-sync. The default human portrait is bundled with the app and needs no avatar service. A saved key is used only when you choose streamed video before an interview.",
     where: "simli.com · billed per minute · adds some reply latency",
     required: false,
   },

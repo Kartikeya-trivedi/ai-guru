@@ -35,6 +35,10 @@ function nullable(node: Node): Node {
 export function toStrictSchema(schema: object): object {
   if (!isNode(schema)) return schema;
   const node: Node = { ...schema };
+  if (node.nullable === true) {
+    Object.assign(node, nullable(node));
+    delete node.nullable;
+  }
 
   if (node.type === "array" && isNode(node.items)) {
     node.items = toStrictSchema(node.items);

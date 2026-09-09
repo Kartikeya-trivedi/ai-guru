@@ -1,5 +1,13 @@
 # PRD & Roadmap
 
+> 2026-09-09 implementation update: the default interviewer appearance is now a
+> bundled fictional human face with audio-driven mouth motion, blinking and subtle
+> expressions, without another runtime service. Saved resume/session access, report draft recovery,
+> explicit camera opt-in, and unassessed report dimensions are implemented.
+> See [LOCAL-FACE.md](LOCAL-FACE.md) and the latest [validation](VALIDATION.md)
+> for the implemented scope and remaining release gates. Older rationale entries
+> below describe earlier iterations.
+
 > Process note: per our own operating principles, this PRD comes first;
 > execution happens in phases against it, with walkthroughs and automated
 > tests before manual testing. Every feature below must pass the founder
