@@ -9,6 +9,8 @@ This release also includes session history, recoverable report drafts and report
 retry, better handling of the final answer when ending an interview, and clearer
 explanations of which content is processed by AI providers.
 
+The target job position accepts any typed title, with optional suggestions.
+
 ## Downloads
 
 - `Interview_0.2.0_x64-setup.exe`: Windows x64 setup.
@@ -30,3 +32,4 @@ This remains a public beta. Installers are unsigned. Mouth articulation follows
 audio energy and onset, not recognized phonemes. Full microphone interviews,
 installed-app history flows and sustained WebView2 behavior still need human
 validation. Windows x64 is the only platform packaged in this release.
+Regular beeps have been reported during testing; their source is still unconfirmed.

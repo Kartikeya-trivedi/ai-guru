@@ -164,6 +164,10 @@ export function InterviewApp() {
 
   const start = useCallback(async () => {
     if (!resume || startingRef.current) return;
+    if (!role.trim()) {
+      setError("Enter the job position you want to practise for.");
+      return;
+    }
     startingRef.current = true;
     try {
     const apiKey = await getKey("gemini");
@@ -173,7 +177,7 @@ export function InterviewApp() {
       return;
     }
 
-    const jobTarget: JobTarget = { role, seniority, jobDescription: jd || undefined };
+    const jobTarget: JobTarget = { role: role.trim(), seniority, jobDescription: jd || undefined };
     setTranscript([]);
     setThreads([]);
     setReport(null);
@@ -350,7 +354,7 @@ export function InterviewApp() {
 
     pendingReportRef.current = structuredClone({
       sessionId: sessionId ?? "local", candidateName: resume.name,
-      jobTarget: { role, seniority, jobDescription: jd || undefined },
+      jobTarget: { role: role.trim(), seniority, jobDescription: jd || undefined },
       threads: assessedThreads, candidateModel, integrityNotes, transcript: session.getTranscript(),
     });
     await produceReport();
@@ -405,7 +409,7 @@ export function InterviewApp() {
   }, [screenStream]);
 
   const startCodingRound = useCallback(() => {
-    const jobTarget: JobTarget = { role, seniority, jobDescription: jd || undefined };
+    const jobTarget: JobTarget = { role: role.trim(), seniority, jobDescription: jd || undefined };
     const picked = pickProblem(jobTarget);
     if (!picked) return setError("No problem available for this level.");
     // Asking for the coding round early is a legitimate request. Move the
@@ -641,9 +645,12 @@ export function InterviewApp() {
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
                   <label className="field" style={{ marginTop: 0 }}>
                     <span className="eyebrow">Target role</span>
-                    <select value={role} onChange={(e) => setRole(e.target.value)}>
-                      {ROLES.map((r) => <option key={r}>{r}</option>)}
-                    </select>
+                    <input value={role} onChange={(e) => setRole(e.target.value)}
+                      list="target-role-suggestions" maxLength={160}
+                      placeholder="Type any job position" />
+                    <datalist id="target-role-suggestions">
+                      {ROLES.map((r) => <option key={r} value={r} />)}
+                    </datalist>
                   </label>
                   <label className="field" style={{ marginTop: 0 }}>
                     <span className="eyebrow">Seniority</span>
@@ -749,7 +756,7 @@ export function InterviewApp() {
               </div>
 
               <div className="reveal">
-                <button className="btn btn-live" onClick={start}>Begin interview</button>
+                <button className="btn btn-live" onClick={start} disabled={!role.trim()}>Begin interview</button>
                 <p className="faint small mono" style={{ marginTop: 10, textAlign: "center" }}>
                   Wear headphones · it hears itself on speakers
                 </p>
