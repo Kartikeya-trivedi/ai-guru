@@ -14,14 +14,25 @@ import pressedFrame from "../../assets/interviewer/pressed.png";
 import focusedFrame from "../../assets/interviewer/focused.png";
 import smileFrame from "../../assets/interviewer/smile.png";
 import { createPortraitMotion, stepPortraitMotion } from "./portraitMotion";
-import { createPortraitRenderer, preparePortraitFrames, type PortraitFrames } from "./portraitRenderer";
+import { createPortraitRenderer, preparePortraitFrames, prepareExtendedFrame, type PortraitFrames } from "./portraitRenderer";
+
+const extendedUrls = import.meta.glob<string>("../../assets/interviewer/extended/*.png", { eager: true, query: "?url", import: "default" });
 
 let frames: Promise<PortraitFrames> | undefined;
 function loadFrames() {
   return frames ??= Promise.all([portrait, speakingFrame, blinkFrame, warmFrame, roundedFrame, attentiveFrame, partedFrame, halfBlinkFrame,
     spreadFrame, openFrame, contactFrame, pressedFrame, focusedFrame, smileFrame].map(src => new Promise<HTMLImageElement>((resolve, reject) => {
     const image = new Image(); image.onload = () => resolve(image); image.onerror = reject; image.src = src;
-  }))).then(preparePortraitFrames).catch(error => { frames = undefined; throw error; });
+  }))).then(preparePortraitFrames).then(async prepared => {
+    // Decode one extra at a time and retain only its small patches.
+    for (const [path, src] of Object.entries(extendedUrls)) {
+      const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const img = new Image(); img.onload = () => resolve(img); img.onerror = reject; img.src = src;
+      });
+      prepareExtendedFrame(prepared, path.split("/").pop()!.replace(".png", ""), image);
+    }
+    return prepared;
+  }).catch(error => { frames = undefined; throw error; });
 }
 
 /** Local photographic rig. Amplitude-driven articulation, not phoneme recognition. */

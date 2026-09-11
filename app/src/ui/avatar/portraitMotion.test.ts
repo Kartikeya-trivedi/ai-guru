@@ -2,6 +2,26 @@ import { describe, it, expect } from "vitest";
 import { createPortraitMotion, stepPortraitMotion } from "./portraitMotion";
 
 describe("local photographic mouth and expressions", () => {
+  it("keeps the expanded rig bounded through a simulated thirty-minute interview", () => {
+    let state = createPortraitMotion(() => .3);
+    let speechBlink = false;
+    for (let i = 0; i < 30 * 60 * 30; i++) {
+      const level = i % 450 < 220 ? Math.max(0, Math.sin(i * .31)) * .24 : 0;
+      state = stepPortraitMotion(state, level, 1 / 30, false, () => .3);
+      for (const key of ["mouth", "transition", "recovery"] as const) {
+        if (!Number.isFinite(state[key]) || state[key] < 0 || state[key] > 1) throw new Error(key);
+      }
+      if (state.mouth === 0) expect(state.recovery).toBeLessThan(.025);
+      speechBlink ||= state.mouth > .1 && state.blink.closed > .3;
+    }
+    expect(speechBlink).toBe(true);
+  });
+  it("stops new decorative motion immediately when reduced motion is enabled", () => {
+    const state = stepPortraitMotion({ ...createPortraitMotion(), gaze: .5, breath: .3 }, .2, 1 / 30, true);
+    expect(state.gaze).toBe(0);
+    expect(state.breath).toBe(0);
+    expect(state.mouth).toBeGreaterThan(0);
+  });
   it("opens with audible speech and closes promptly after an interruption", () => {
     let state = createPortraitMotion(() => .5);
     for (let i = 0; i < 10; i++) state = stepPortraitMotion(state, .2, 1 / 30);

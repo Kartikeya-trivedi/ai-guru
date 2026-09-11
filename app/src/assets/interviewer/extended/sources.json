@@ -1,0 +1,207 @@
+[
+  {
+    "file": "blink-reopen-left.png",
+    "sha256": "ba5bd1e7f707e00f26f0634f03d7353b59c049e763f14e375d8d89818cfd84ab",
+    "generator": "built-in imagegen",
+    "reference": "../portrait.png",
+    "prompt": "Edit this reference portrait into ONE 1536x1024 photoreal webcam frame. Identity-preserve. Exact same person, facial geometry, asymmetry, skin pores, hair, ears, eye color, clothing wrinkles/collar, background objects, fixed camera and lighting. No beautification, face scale changes or head motion. Hands stay out of frame. Alter only the specified subtle movement; everything else fixed. Natural mouth depth and consistent teeth. No text or grid. TARGET: Asymmetric reopening after blink, left eyelid 70 percent open, right 90 percent. Mouth closed."
+  },
+  {
+    "file": "blink-reopen-right.png",
+    "sha256": "3afd3554e10e049d37594bfc955091d3316316a2e26bd9db62f6bbf93ab51477",
+    "generator": "built-in imagegen",
+    "reference": "../portrait.png",
+    "prompt": "Edit this reference portrait into ONE 1536x1024 photoreal webcam frame. Identity-preserve. Exact same person, facial geometry, asymmetry, skin pores, hair, ears, eye color, clothing wrinkles/collar, background objects, fixed camera and lighting. No beautification, face scale changes or head motion. Hands stay out of frame. Alter only the specified subtle movement; everything else fixed. Natural mouth depth and consistent teeth. No text or grid. TARGET: Asymmetric reopening after blink, right eyelid 70 percent open, left 90 percent. Mouth closed."
+  },
+  {
+    "file": "breath-in.png",
+    "sha256": "368f8c164f57de8491971c41acd66986fac036b8d3de9f4ca6ce6abe8eef1b02",
+    "generator": "built-in imagegen",
+    "reference": "../portrait.png",
+    "prompt": "Edit this reference portrait into ONE 1536x1024 photoreal webcam frame. Identity-preserve. Exact same person, facial geometry, asymmetry, skin pores, hair, ears, eye color, clothing wrinkles/collar, background objects, fixed camera and lighting. No beautification, face scale changes or head motion. Hands stay out of frame. Alter only the specified subtle movement; everything else fixed. Natural mouth depth and consistent teeth. No text or grid. TARGET: Quiet closed-mouth inhalation, shoulders and upper chest rise only 2 pixels. Face/head completely fixed."
+  },
+  {
+    "file": "breath-out.png",
+    "sha256": "d76362bcc28f2ebae9460d9e71849ebfccdfa8f430d24591013ac399f3a117f5",
+    "generator": "built-in imagegen",
+    "reference": "../portrait.png",
+    "prompt": "Edit this reference portrait into ONE 1536x1024 photoreal webcam frame. Identity-preserve. Exact same person, facial geometry, asymmetry, skin pores, hair, ears, eye color, clothing wrinkles/collar, background objects, fixed camera and lighting. No beautification, face scale changes or head motion. Hands stay out of frame. Alter only the specified subtle movement; everything else fixed. Natural mouth depth and consistent teeth. No text or grid. TARGET: Quiet closed-mouth exhalation, shoulders and upper chest relax down only 2 pixels. Face/head fixed."
+  },
+  {
+    "file": "contact-release.png",
+    "sha256": "6ba89ee63761cf80723bdbd8ae3a83631df110657135edb3fb9def1cc843e211",
+    "generator": "built-in imagegen",
+    "reference": "../portrait.png",
+    "prompt": "Edit this reference portrait into ONE 1536x1024 photoreal webcam frame. Identity-preserve. Exact same person, facial geometry, asymmetry, skin pores, hair, ears, eye color, clothing wrinkles/collar, background objects, fixed camera and lighting. No beautification, face scale changes or head motion. Hands stay out of frame. Alter only the specified subtle movement; everything else fixed. Natural mouth depth and consistent teeth. No text or grid. TARGET: Upper teeth have just released lower lip into a tiny open vowel; natural shallow mouth opening."
+  },
+  {
+    "file": "lip-bite.png",
+    "sha256": "e759e6ba8f180fda173f39f0c6b903a80b2068cc4c1f0852b5dec554e774d2df",
+    "generator": "built-in imagegen",
+    "reference": "../portrait.png",
+    "sourceCase": "c18-fv",
+    "prompt": "Use case: identity-preserve. Edit the attached original fictional interviewer portrait into ONE separate photoreal animation frame, EXACTLY 1536x1024. This is not a new portrait. Identity consistency is paramount. Preserve face geometry, skin tone/undertone, natural asymmetry, marks, facial hair shape/density, hairline/part/volume, ear shape, eyebrow thickness, brown eye color, eyelid anatomy, pores, slight redness, under-eye texture and stray hairs. Never beautify, smooth, age, de-age, slim or whiten teeth. Fixed eye-level chest-up webcam framing matching the reference, same subject offset and camera lens. Same clothing wrinkles, collar, background objects, positions, depth of field, lighting direction/color/softness. Change ONLY the specified face/head/shoulder region, only the specified small motion. Do not change neck length. Eyes converge naturally; catchlights fixed to the same lighting. Hands remain OUT OF FRAME. No text, grid, watermark, borders, extra fingers, hair halos or flat-black mouth interior. If mouth opens, show anatomically plausible three-dimensional mouth, consistent naturally colored teeth, no invented rows or oversized teeth. Subtle real-video-call expression, never theatrical. Angles below are deltas from the reference pose; subject left/right means HIS left/right. TARGET: F/V: upper front incisors gently contact the inner lower lip, upper lip relaxed, mouth corners slightly parted. The upper teeth must actually meet the lower lip. Neutral affect, no added smile. Head, gaze, eyebrows and jaw alignment remain registered to the original; change only articulation.",
+    "promptNote": "This frame was regenerated to clarify incisor-to-lower-lip contact. The initial prompt is preserved; the exact corrective prompt was not retained in this manifest."
+  },
+  {
+    "file": "open.png",
+    "sha256": "8c7e584fdbd347e5c7b97b112871b618b09db35b3127ae0017f1a5d77d5d3eee",
+    "generator": "built-in imagegen",
+    "reference": "../portrait.png",
+    "sourceCase": "c18-ai",
+    "prompt": "Use case: identity-preserve. Edit the attached original fictional interviewer portrait into ONE separate photoreal animation frame, EXACTLY 1536x1024. This is not a new portrait. Identity consistency is paramount. Preserve face geometry, skin tone/undertone, natural asymmetry, marks, facial hair shape/density, hairline/part/volume, ear shape, eyebrow thickness, brown eye color, eyelid anatomy, pores, slight redness, under-eye texture and stray hairs. Never beautify, smooth, age, de-age, slim or whiten teeth. Fixed eye-level chest-up webcam framing matching the reference, same subject offset and camera lens. Same clothing wrinkles, collar, background objects, positions, depth of field, lighting direction/color/softness. Change ONLY the specified face/head/shoulder region, only the specified small motion. Do not change neck length. Eyes converge naturally; catchlights fixed to the same lighting. Hands remain OUT OF FRAME. No text, grid, watermark, borders, extra fingers, hair halos or flat-black mouth interior. If mouth opens, show anatomically plausible three-dimensional mouth, consistent naturally colored teeth, no invented rows or oversized teeth. Subtle real-video-call expression, never theatrical. Angles below are deltas from the reference pose; subject left/right means HIS left/right. TARGET: A/I as the open vowel in 'father': lower jaw opens naturally, lips relaxed, tongue resting low, upper teeth subtly visible. This is the open-jaw visual pose, not a smile. Neutral affect, no added smile. Head, gaze, eyebrows and jaw alignment remain registered to the original; change only articulation."
+  },
+  {
+    "file": "parted.png",
+    "sha256": "25468f5a3c8463f77512cc3d919bde64f4c6dd6c420731b7705c3d534c16ee24",
+    "generator": "built-in imagegen",
+    "reference": "../portrait.png",
+    "sourceCase": "c21-breath-pause",
+    "prompt": "Use case: identity-preserve. Edit the attached original fictional interviewer portrait into ONE separate photoreal animation frame, EXACTLY 1536x1024. This is not a new portrait. Identity consistency is paramount. Preserve face geometry, skin tone/undertone, natural asymmetry, marks, facial hair shape/density, hairline/part/volume, ear shape, eyebrow thickness, brown eye color, eyelid anatomy, pores, slight redness, under-eye texture and stray hairs. Never beautify, smooth, age, de-age, slim or whiten teeth. Fixed eye-level chest-up webcam framing matching the reference, same subject offset and camera lens. Same clothing wrinkles, collar, background objects, positions, depth of field, lighting direction/color/softness. Change ONLY the specified face/head/shoulder region, only the specified small motion. Do not change neck length. Eyes converge naturally; catchlights fixed to the same lighting. Hands remain OUT OF FRAME. No text, grid, watermark, borders, extra fingers, hair halos or flat-black mouth interior. If mouth opens, show anatomically plausible three-dimensional mouth, consistent naturally colored teeth, no invented rows or oversized teeth. Subtle real-video-call expression, never theatrical. Angles below are deltas from the reference pose; subject left/right means HIS left/right. TARGET: Breath/pause: lips barely parted 2 millimeters, jaw relaxed, otherwise neutral attentive."
+  },
+  {
+    "file": "pressed.png",
+    "sha256": "44bc84ceb371bd6bf5fd448e65a65898b804a6ae46eabce024d8a59b51d50387",
+    "generator": "built-in imagegen",
+    "reference": "../portrait.png",
+    "sourceCase": "c18-mbp",
+    "prompt": "Use case: identity-preserve. Edit the attached original fictional interviewer portrait into ONE separate photoreal animation frame, EXACTLY 1536x1024. This is not a new portrait. Identity consistency is paramount. Preserve face geometry, skin tone/undertone, natural asymmetry, marks, facial hair shape/density, hairline/part/volume, ear shape, eyebrow thickness, brown eye color, eyelid anatomy, pores, slight redness, under-eye texture and stray hairs. Never beautify, smooth, age, de-age, slim or whiten teeth. Fixed eye-level chest-up webcam framing matching the reference, same subject offset and camera lens. Same clothing wrinkles, collar, background objects, positions, depth of field, lighting direction/color/softness. Change ONLY the specified face/head/shoulder region, only the specified small motion. Do not change neck length. Eyes converge naturally; catchlights fixed to the same lighting. Hands remain OUT OF FRAME. No text, grid, watermark, borders, extra fingers, hair halos or flat-black mouth interior. If mouth opens, show anatomically plausible three-dimensional mouth, consistent naturally colored teeth, no invented rows or oversized teeth. Subtle real-video-call expression, never theatrical. Angles below are deltas from the reference pose; subject left/right means HIS left/right. TARGET: M/B/P: lips completely sealed with gentle lip compression, relaxed jaw and cheeks. Neutral affect, no added smile. Head, gaze, eyebrows and jaw alignment remain registered to the original; change only articulation."
+  },
+  {
+    "file": "recovery.png",
+    "sha256": "768bc1eb1b17f1ab1db51ec57b623c3bffbdb92bb3b2c621e8dc502edfe8d2ad",
+    "generator": "built-in imagegen",
+    "reference": "../portrait.png",
+    "prompt": "Edit this reference portrait into ONE 1536x1024 photoreal webcam frame. Identity-preserve. Exact same person, facial geometry, asymmetry, skin pores, hair, ears, eye color, clothing wrinkles/collar, background objects, fixed camera and lighting. No beautification, face scale changes or head motion. Hands stay out of frame. Alter only the specified subtle movement; everything else fixed. Natural mouth depth and consistent teeth. No text or grid. TARGET: Speech interruption recovery: mouth nearly closed, lips just barely separated, calm listening eyes."
+  },
+  {
+    "file": "rounded.png",
+    "sha256": "10417cdd6b4308b89efd7450de92f7e4e7c8155168f43dbf6614f7a07085be83",
+    "generator": "built-in imagegen",
+    "reference": "../portrait.png",
+    "sourceCase": "c18-o",
+    "prompt": "Use case: identity-preserve. Edit the attached original fictional interviewer portrait into ONE separate photoreal animation frame, EXACTLY 1536x1024. This is not a new portrait. Identity consistency is paramount. Preserve face geometry, skin tone/undertone, natural asymmetry, marks, facial hair shape/density, hairline/part/volume, ear shape, eyebrow thickness, brown eye color, eyelid anatomy, pores, slight redness, under-eye texture and stray hairs. Never beautify, smooth, age, de-age, slim or whiten teeth. Fixed eye-level chest-up webcam framing matching the reference, same subject offset and camera lens. Same clothing wrinkles, collar, background objects, positions, depth of field, lighting direction/color/softness. Change ONLY the specified face/head/shoulder region, only the specified small motion. Do not change neck length. Eyes converge naturally; catchlights fixed to the same lighting. Hands remain OUT OF FRAME. No text, grid, watermark, borders, extra fingers, hair halos or flat-black mouth interior. If mouth opens, show anatomically plausible three-dimensional mouth, consistent naturally colored teeth, no invented rows or oversized teeth. Subtle real-video-call expression, never theatrical. Angles below are deltas from the reference pose; subject left/right means HIS left/right. TARGET: O as in 'go': lips rounded into a medium vertical oval, jaw moderately open; mouth interior has depth. Neutral affect, no added smile. Head, gaze, eyebrows and jaw alignment remain registered to the original; change only articulation."
+  },
+  {
+    "file": "saccade-left.png",
+    "sha256": "6b70711d0dc7551fc84fe4add4bf6d3b8d1f42126c7ded76da9ba9ab4014b88c",
+    "generator": "built-in imagegen",
+    "reference": "../portrait.png",
+    "prompt": "Edit this reference portrait into ONE 1536x1024 photoreal webcam frame. Identity-preserve. Exact same person, facial geometry, asymmetry, skin pores, hair, ears, eye color, clothing wrinkles/collar, background objects, fixed camera and lighting. No beautification, face scale changes or head motion. Hands stay out of frame. Alter only the specified subtle movement; everything else fixed. Natural mouth depth and consistent teeth. No text or grid. TARGET: Correct only pupils: move both pupil centers ONE PIXEL toward viewer-right from reference. Gaze should still appear almost directly at camera. Do NOT look toward side monitor, do not move head or eyelids, preserve closed mouth. Tiny central eye saccade onset."
+  },
+  {
+    "file": "saccade-right.png",
+    "sha256": "205efedb2589ca3c50bef61912792c187687eb235b117a4f1ca835f6c3899433",
+    "generator": "built-in imagegen",
+    "reference": "../portrait.png",
+    "prompt": "Edit this reference portrait into ONE 1536x1024 photoreal webcam frame. Identity-preserve. Exact same person, facial geometry, asymmetry, skin pores, hair, ears, eye color, clothing wrinkles/collar, background objects, fixed camera and lighting. No beautification, face scale changes or head motion. Hands stay out of frame. Alter only the specified subtle movement; everything else fixed. Natural mouth depth and consistent teeth. No text or grid. TARGET: Eyes glance only ONE degree subject-right. Absolutely no head movement, mouth closed."
+  },
+  {
+    "file": "smile-closed.png",
+    "sha256": "dbfbeed5f5fc77e488e830722b88bcf9fe429e4bbc3fcada128b85e2dee46967",
+    "generator": "built-in imagegen",
+    "reference": "../portrait.png",
+    "sourceCase": "c10-smile-closed",
+    "prompt": "Use case: identity-preserve. Edit the attached original fictional interviewer portrait into ONE separate photoreal animation frame, EXACTLY 1536x1024. This is not a new portrait. Identity consistency is paramount. Preserve face geometry, skin tone/undertone, natural asymmetry, marks, facial hair shape/density, hairline/part/volume, ear shape, eyebrow thickness, brown eye color, eyelid anatomy, pores, slight redness, under-eye texture and stray hairs. Never beautify, smooth, age, de-age, slim or whiten teeth. Fixed eye-level chest-up webcam framing matching the reference, same subject offset and camera lens. Same clothing wrinkles, collar, background objects, positions, depth of field, lighting direction/color/softness. Change ONLY the specified face/head/shoulder region, only the specified small motion. Do not change neck length. Eyes converge naturally; catchlights fixed to the same lighting. Hands remain OUT OF FRAME. No text, grid, watermark, borders, extra fingers, hair halos or flat-black mouth interior. If mouth opens, show anatomically plausible three-dimensional mouth, consistent naturally colored teeth, no invented rows or oversized teeth. Subtle real-video-call expression, never theatrical. Angles below are deltas from the reference pose; subject left/right means HIS left/right. TARGET: Small subtle closed-lip smile, slight cheek lift, no teeth visible, natural warmth."
+  },
+  {
+    "file": "speaking.png",
+    "sha256": "8c7e584fdbd347e5c7b97b112871b618b09db35b3127ae0017f1a5d77d5d3eee",
+    "generator": "built-in imagegen",
+    "reference": "../portrait.png",
+    "sourceCase": "c18-ai",
+    "prompt": "Use case: identity-preserve. Edit the attached original fictional interviewer portrait into ONE separate photoreal animation frame, EXACTLY 1536x1024. This is not a new portrait. Identity consistency is paramount. Preserve face geometry, skin tone/undertone, natural asymmetry, marks, facial hair shape/density, hairline/part/volume, ear shape, eyebrow thickness, brown eye color, eyelid anatomy, pores, slight redness, under-eye texture and stray hairs. Never beautify, smooth, age, de-age, slim or whiten teeth. Fixed eye-level chest-up webcam framing matching the reference, same subject offset and camera lens. Same clothing wrinkles, collar, background objects, positions, depth of field, lighting direction/color/softness. Change ONLY the specified face/head/shoulder region, only the specified small motion. Do not change neck length. Eyes converge naturally; catchlights fixed to the same lighting. Hands remain OUT OF FRAME. No text, grid, watermark, borders, extra fingers, hair halos or flat-black mouth interior. If mouth opens, show anatomically plausible three-dimensional mouth, consistent naturally colored teeth, no invented rows or oversized teeth. Subtle real-video-call expression, never theatrical. Angles below are deltas from the reference pose; subject left/right means HIS left/right. TARGET: A/I as the open vowel in 'father': lower jaw opens naturally, lips relaxed, tongue resting low, upper teeth subtly visible. This is the open-jaw visual pose, not a smile. Neutral affect, no added smile. Head, gaze, eyebrows and jaw alignment remain registered to the original; change only articulation."
+  },
+  {
+    "file": "speech-blink-closed.png",
+    "sha256": "b3927271439d40b4dd25d390be4e2a49321aa40e8983f14112ca3a20976856e6",
+    "generator": "built-in imagegen",
+    "reference": "../portrait.png",
+    "prompt": "Edit this reference portrait into ONE 1536x1024 photoreal webcam frame. Identity-preserve. Exact same person, facial geometry, asymmetry, skin pores, hair, ears, eye color, clothing wrinkles/collar, background objects, fixed camera and lighting. No beautification, face scale changes or head motion. Hands stay out of frame. Alter only the specified subtle movement; everything else fixed. Natural mouth depth and consistent teeth. No text or grid. TARGET: Small rounded O speech mouth, eyelids fully closed relaxed."
+  },
+  {
+    "file": "speech-blink-half.png",
+    "sha256": "eec475c4ee12f0a2ee9c1f957009e6ba8bb7eb2dbd3e6358ded93add1e7ffdf8",
+    "generator": "built-in imagegen",
+    "reference": "../portrait.png",
+    "prompt": "Edit this reference portrait into ONE 1536x1024 photoreal webcam frame. Identity-preserve. Exact same person, facial geometry, asymmetry, skin pores, hair, ears, eye color, clothing wrinkles/collar, background objects, fixed camera and lighting. No beautification, face scale changes or head motion. Hands stay out of frame. Alter only the specified subtle movement; everything else fixed. Natural mouth depth and consistent teeth. No text or grid. TARGET: Small A/I speech mouth, both eyelids half closed in a relaxed blink."
+  },
+  {
+    "file": "speech-blink-rounded-half.png",
+    "sha256": "a3eb24522c2f702dfbc69ae22e04014dfe38e1182f56d22429bb5a7aab4e1679",
+    "generator": "built-in imagegen",
+    "reference": "../portrait.png",
+    "prompt": "Edit this reference portrait into ONE 1536x1024 photoreal webcam frame. Identity-preserve. Exact same person, facial geometry, asymmetry, skin pores, hair, ears, eye color, clothing wrinkles/collar, background objects, fixed camera and lighting. No beautification, face scale changes or head motion. Hands stay out of frame. Alter only the specified subtle movement; everything else fixed. Natural mouth depth and consistent teeth. No text or grid. TARGET: Small rounded O speech mouth, eyelids half closed relaxed, no head motion."
+  },
+  {
+    "file": "speech-transition.png",
+    "sha256": "8bc1ef9f9efe4dc7f52bf8b060acbdc38ff9aab64b98bed636bea36bb21304cd",
+    "generator": "built-in imagegen",
+    "reference": "../portrait.png",
+    "prompt": "Edit this reference portrait into ONE 1536x1024 photoreal webcam frame. Identity-preserve. Exact same person, facial geometry, asymmetry, skin pores, hair, ears, eye color, clothing wrinkles/collar, background objects, fixed camera and lighting. No beautification, face scale changes or head motion. Hands stay out of frame. Alter only the specified subtle movement; everything else fixed. Natural mouth depth and consistent teeth. No text or grid. TARGET: Mouth halfway from rounded O to spread E, small opening, neutral affect, eyes camera."
+  },
+  {
+    "file": "spread.png",
+    "sha256": "a9ba57ca868a444004adc5d1143f34d8b0f086ff266a1d69b61a57e5fdb24a7d",
+    "generator": "built-in imagegen",
+    "reference": "../portrait.png",
+    "sourceCase": "c18-e",
+    "prompt": "Use case: identity-preserve. Edit the attached original fictional interviewer portrait into ONE separate photoreal animation frame, EXACTLY 1536x1024. This is not a new portrait. Identity consistency is paramount. Preserve face geometry, skin tone/undertone, natural asymmetry, marks, facial hair shape/density, hairline/part/volume, ear shape, eyebrow thickness, brown eye color, eyelid anatomy, pores, slight redness, under-eye texture and stray hairs. Never beautify, smooth, age, de-age, slim or whiten teeth. Fixed eye-level chest-up webcam framing matching the reference, same subject offset and camera lens. Same clothing wrinkles, collar, background objects, positions, depth of field, lighting direction/color/softness. Change ONLY the specified face/head/shoulder region, only the specified small motion. Do not change neck length. Eyes converge naturally; catchlights fixed to the same lighting. Hands remain OUT OF FRAME. No text, grid, watermark, borders, extra fingers, hair halos or flat-black mouth interior. If mouth opens, show anatomically plausible three-dimensional mouth, consistent naturally colored teeth, no invented rows or oversized teeth. Subtle real-video-call expression, never theatrical. Angles below are deltas from the reference pose; subject left/right means HIS left/right. TARGET: E/ee: lips spread horizontally, moderate narrow opening, teeth nearly together, visible upper teeth naturally aligned. Avoid a grin. Neutral affect, no added smile. Head, gaze, eyebrows and jaw alignment remain registered to the original; change only articulation."
+  },
+  {
+    "file": "warm-lip-bite.png",
+    "sha256": "6d8e3d01f0bc58f977d42382b7b7ffd6abcc2022289c085bc986c7a0afb4f5fb",
+    "generator": "built-in imagegen",
+    "reference": "../portrait.png",
+    "sourceCase": "c19-fv",
+    "prompt": "Use case: identity-preserve. Edit the attached original fictional interviewer portrait into ONE separate photoreal animation frame, EXACTLY 1536x1024. This is not a new portrait. Identity consistency is paramount. Preserve face geometry, skin tone/undertone, natural asymmetry, marks, facial hair shape/density, hairline/part/volume, ear shape, eyebrow thickness, brown eye color, eyelid anatomy, pores, slight redness, under-eye texture and stray hairs. Never beautify, smooth, age, de-age, slim or whiten teeth. Fixed eye-level chest-up webcam framing matching the reference, same subject offset and camera lens. Same clothing wrinkles, collar, background objects, positions, depth of field, lighting direction/color/softness. Change ONLY the specified face/head/shoulder region, only the specified small motion. Do not change neck length. Eyes converge naturally; catchlights fixed to the same lighting. Hands remain OUT OF FRAME. No text, grid, watermark, borders, extra fingers, hair halos or flat-black mouth interior. If mouth opens, show anatomically plausible three-dimensional mouth, consistent naturally colored teeth, no invented rows or oversized teeth. Subtle real-video-call expression, never theatrical. Angles below are deltas from the reference pose; subject left/right means HIS left/right. TARGET: Warm F/V correction: the UPPER FRONT INCISORS must be visibly resting on the INNER LOWER LIP, which is lightly rolled inward. Show enough upper teeth to make that lip contact unambiguous. NOT a closed-lip smile, NOT lips completely sealed. The slight warmth comes only from relaxed cheeks and eye area; it must not hide the tooth-to-lip contact. Mouth corners subtly friendly, exact reference identity and scene."
+  },
+  {
+    "file": "warm-open.png",
+    "sha256": "5c0336b6ddc3fde37335d01953901030318cc0b3c343eed63579e211fe14fe3c",
+    "generator": "built-in imagegen",
+    "reference": "../portrait.png",
+    "sourceCase": "c19-ai",
+    "prompt": "Use case: identity-preserve. Edit the attached original fictional interviewer portrait into ONE separate photoreal animation frame, EXACTLY 1536x1024. This is not a new portrait. Identity consistency is paramount. Preserve face geometry, skin tone/undertone, natural asymmetry, marks, facial hair shape/density, hairline/part/volume, ear shape, eyebrow thickness, brown eye color, eyelid anatomy, pores, slight redness, under-eye texture and stray hairs. Never beautify, smooth, age, de-age, slim or whiten teeth. Fixed eye-level chest-up webcam framing matching the reference, same subject offset and camera lens. Same clothing wrinkles, collar, background objects, positions, depth of field, lighting direction/color/softness. Change ONLY the specified face/head/shoulder region, only the specified small motion. Do not change neck length. Eyes converge naturally; catchlights fixed to the same lighting. Hands remain OUT OF FRAME. No text, grid, watermark, borders, extra fingers, hair halos or flat-black mouth interior. If mouth opens, show anatomically plausible three-dimensional mouth, consistent naturally colored teeth, no invented rows or oversized teeth. Subtle real-video-call expression, never theatrical. Angles below are deltas from the reference pose; subject left/right means HIS left/right. TARGET: A/I as the open vowel in 'father': lower jaw opens naturally, lips relaxed, tongue resting low, upper teeth subtly visible. This is the open-jaw visual pose, not a smile. Keep a very slight warm smile in cheeks and mouth corners, without compromising the specified lip contact/shape. Head, gaze, eyebrows and jaw alignment remain registered to the original; change only articulation."
+  },
+  {
+    "file": "warm-parted.png",
+    "sha256": "d11c326ffc798603da17e0c6507e3fad7a7eab119a2d2529f3b185f9487b7190",
+    "generator": "built-in imagegen",
+    "reference": "../portrait.png",
+    "sourceCase": "c19-rest",
+    "prompt": "Use case: identity-preserve. Edit the attached original fictional interviewer portrait into ONE separate photoreal animation frame, EXACTLY 1536x1024. This is not a new portrait. Identity consistency is paramount. Preserve face geometry, skin tone/undertone, natural asymmetry, marks, facial hair shape/density, hairline/part/volume, ear shape, eyebrow thickness, brown eye color, eyelid anatomy, pores, slight redness, under-eye texture and stray hairs. Never beautify, smooth, age, de-age, slim or whiten teeth. Fixed eye-level chest-up webcam framing matching the reference, same subject offset and camera lens. Same clothing wrinkles, collar, background objects, positions, depth of field, lighting direction/color/softness. Change ONLY the specified face/head/shoulder region, only the specified small motion. Do not change neck length. Eyes converge naturally; catchlights fixed to the same lighting. Hands remain OUT OF FRAME. No text, grid, watermark, borders, extra fingers, hair halos or flat-black mouth interior. If mouth opens, show anatomically plausible three-dimensional mouth, consistent naturally colored teeth, no invented rows or oversized teeth. Subtle real-video-call expression, never theatrical. Angles below are deltas from the reference pose; subject left/right means HIS left/right. TARGET: Speech rest: mouth closed and relaxed. Keep a very slight warm smile in cheeks and mouth corners, without compromising the specified lip contact/shape. Head, gaze, eyebrows and jaw alignment remain registered to the original; change only articulation."
+  },
+  {
+    "file": "warm-pressed.png",
+    "sha256": "b74cda0cb8d31502312b388d3f7aa91b79dfd98f4caa807f3a711e3e17e5aca9",
+    "generator": "built-in imagegen",
+    "reference": "../portrait.png",
+    "sourceCase": "c19-mbp",
+    "prompt": "Use case: identity-preserve. Edit the attached original fictional interviewer portrait into ONE separate photoreal animation frame, EXACTLY 1536x1024. This is not a new portrait. Identity consistency is paramount. Preserve face geometry, skin tone/undertone, natural asymmetry, marks, facial hair shape/density, hairline/part/volume, ear shape, eyebrow thickness, brown eye color, eyelid anatomy, pores, slight redness, under-eye texture and stray hairs. Never beautify, smooth, age, de-age, slim or whiten teeth. Fixed eye-level chest-up webcam framing matching the reference, same subject offset and camera lens. Same clothing wrinkles, collar, background objects, positions, depth of field, lighting direction/color/softness. Change ONLY the specified face/head/shoulder region, only the specified small motion. Do not change neck length. Eyes converge naturally; catchlights fixed to the same lighting. Hands remain OUT OF FRAME. No text, grid, watermark, borders, extra fingers, hair halos or flat-black mouth interior. If mouth opens, show anatomically plausible three-dimensional mouth, consistent naturally colored teeth, no invented rows or oversized teeth. Subtle real-video-call expression, never theatrical. Angles below are deltas from the reference pose; subject left/right means HIS left/right. TARGET: M/B/P: lips completely sealed with gentle lip compression, relaxed jaw and cheeks. Keep a very slight warm smile in cheeks and mouth corners, without compromising the specified lip contact/shape. Head, gaze, eyebrows and jaw alignment remain registered to the original; change only articulation."
+  },
+  {
+    "file": "warm-rounded.png",
+    "sha256": "6ac993e744b51297d1e669723d0140aaea91194591249c0060d03599b9875f43",
+    "generator": "built-in imagegen",
+    "reference": "../portrait.png",
+    "sourceCase": "c19-o",
+    "prompt": "Use case: identity-preserve. Edit the attached original fictional interviewer portrait into ONE separate photoreal animation frame, EXACTLY 1536x1024. This is not a new portrait. Identity consistency is paramount. Preserve face geometry, skin tone/undertone, natural asymmetry, marks, facial hair shape/density, hairline/part/volume, ear shape, eyebrow thickness, brown eye color, eyelid anatomy, pores, slight redness, under-eye texture and stray hairs. Never beautify, smooth, age, de-age, slim or whiten teeth. Fixed eye-level chest-up webcam framing matching the reference, same subject offset and camera lens. Same clothing wrinkles, collar, background objects, positions, depth of field, lighting direction/color/softness. Change ONLY the specified face/head/shoulder region, only the specified small motion. Do not change neck length. Eyes converge naturally; catchlights fixed to the same lighting. Hands remain OUT OF FRAME. No text, grid, watermark, borders, extra fingers, hair halos or flat-black mouth interior. If mouth opens, show anatomically plausible three-dimensional mouth, consistent naturally colored teeth, no invented rows or oversized teeth. Subtle real-video-call expression, never theatrical. Angles below are deltas from the reference pose; subject left/right means HIS left/right. TARGET: O as in 'go': lips rounded into a medium vertical oval, jaw moderately open; mouth interior has depth. Keep a very slight warm smile in cheeks and mouth corners, without compromising the specified lip contact/shape. Head, gaze, eyebrows and jaw alignment remain registered to the original; change only articulation."
+  },
+  {
+    "file": "warm-speaking.png",
+    "sha256": "5c0336b6ddc3fde37335d01953901030318cc0b3c343eed63579e211fe14fe3c",
+    "generator": "built-in imagegen",
+    "reference": "../portrait.png",
+    "sourceCase": "c19-ai",
+    "prompt": "Use case: identity-preserve. Edit the attached original fictional interviewer portrait into ONE separate photoreal animation frame, EXACTLY 1536x1024. This is not a new portrait. Identity consistency is paramount. Preserve face geometry, skin tone/undertone, natural asymmetry, marks, facial hair shape/density, hairline/part/volume, ear shape, eyebrow thickness, brown eye color, eyelid anatomy, pores, slight redness, under-eye texture and stray hairs. Never beautify, smooth, age, de-age, slim or whiten teeth. Fixed eye-level chest-up webcam framing matching the reference, same subject offset and camera lens. Same clothing wrinkles, collar, background objects, positions, depth of field, lighting direction/color/softness. Change ONLY the specified face/head/shoulder region, only the specified small motion. Do not change neck length. Eyes converge naturally; catchlights fixed to the same lighting. Hands remain OUT OF FRAME. No text, grid, watermark, borders, extra fingers, hair halos or flat-black mouth interior. If mouth opens, show anatomically plausible three-dimensional mouth, consistent naturally colored teeth, no invented rows or oversized teeth. Subtle real-video-call expression, never theatrical. Angles below are deltas from the reference pose; subject left/right means HIS left/right. TARGET: A/I as the open vowel in 'father': lower jaw opens naturally, lips relaxed, tongue resting low, upper teeth subtly visible. This is the open-jaw visual pose, not a smile. Keep a very slight warm smile in cheeks and mouth corners, without compromising the specified lip contact/shape. Head, gaze, eyebrows and jaw alignment remain registered to the original; change only articulation."
+  },
+  {
+    "file": "warm-spread.png",
+    "sha256": "9a38b33301a2dce9b7abf5514d71444df3109dfb3b3ce689473ad0684924a66f",
+    "generator": "built-in imagegen",
+    "reference": "../portrait.png",
+    "sourceCase": "c19-e",
+    "prompt": "Use case: identity-preserve. Edit the attached original fictional interviewer portrait into ONE separate photoreal animation frame, EXACTLY 1536x1024. This is not a new portrait. Identity consistency is paramount. Preserve face geometry, skin tone/undertone, natural asymmetry, marks, facial hair shape/density, hairline/part/volume, ear shape, eyebrow thickness, brown eye color, eyelid anatomy, pores, slight redness, under-eye texture and stray hairs. Never beautify, smooth, age, de-age, slim or whiten teeth. Fixed eye-level chest-up webcam framing matching the reference, same subject offset and camera lens. Same clothing wrinkles, collar, background objects, positions, depth of field, lighting direction/color/softness. Change ONLY the specified face/head/shoulder region, only the specified small motion. Do not change neck length. Eyes converge naturally; catchlights fixed to the same lighting. Hands remain OUT OF FRAME. No text, grid, watermark, borders, extra fingers, hair halos or flat-black mouth interior. If mouth opens, show anatomically plausible three-dimensional mouth, consistent naturally colored teeth, no invented rows or oversized teeth. Subtle real-video-call expression, never theatrical. Angles below are deltas from the reference pose; subject left/right means HIS left/right. TARGET: E/ee: lips spread horizontally, moderate narrow opening, teeth nearly together, visible upper teeth naturally aligned. Avoid a grin. Keep a very slight warm smile in cheeks and mouth corners, without compromising the specified lip contact/shape. Head, gaze, eyebrows and jaw alignment remain registered to the original; change only articulation."
+  }
+]

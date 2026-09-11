@@ -1,5 +1,21 @@
 # Validation log
 
+## 2026-09-11 — 0.2.0 release candidate
+
+- 238 tests pass across 19 JavaScript/TypeScript files. Includes the simulated
+  thirty-minute motion sequence; this is not a timed microphone interview.
+- Production build and bundled-secret scan pass. Rust `cargo test --locked
+  --offline` succeeds, with zero Rust tests currently defined.
+- Browser preview loads the expanded local avatar, shows speech motion and
+  returns to listening when preview speech is stopped.
+- Lower-face render comparison: 700 changed left-cheek pixels, 558 right-cheek,
+  575 chin, and zero in the sampled background region. This checks region
+  participation, not anatomical realism or exact phoneme timing.
+- The optimized Windows executable launched and remained responsive in a basic
+  process smoke check. Native UI and sustained microphone flows were not verified.
+- Release remains a Windows x64 public beta; unsigned installer and installed
+  WebView2 microphone/history validation limits remain open.
+
 Evidence for the gates in [PRD.md](PRD.md). Claims here are measured, not
 assumed — re-run the harnesses before trusting them after a provider change.
 

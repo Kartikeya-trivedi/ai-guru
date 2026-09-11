@@ -2,10 +2,12 @@ import { createBlinkState, opennessFromLevel, stepBlink, type BlinkState } from 
 
 export interface PortraitMotion {
   mouth: number; rounded: number; attentive: number; warmth: number; blink: BlinkState; elapsed: number;
+  breath: number; gaze: number; transition: number; recovery: number; reducedMotion: boolean;
   focused: number; smile: number; closure: number; spread: number; syllable: number; sinceOnset: number;
 }
 export function createPortraitMotion(random = Math.random): PortraitMotion {
   return { mouth: 0, rounded: 0, attentive: 0, warmth: 0.35, blink: createBlinkState(random), elapsed: 0,
+    breath: 0, gaze: 0, transition: 0, recovery: 0, reducedMotion: false,
     focused: 0, smile: 0, closure: 0, spread: 0, syllable: 0, sinceOnset: 1 };
 }
 /** Sound, not the transcript's speaking flag, is authoritative for the mouth. */
@@ -29,6 +31,11 @@ export function stepPortraitMotion(previous: PortraitMotion, level: number, dt: 
   const closureTarget = silent && previous.mouth > .12 ? .65 : 0;
   const spreadTarget = !silent && syllable % 3 === 2 ? .7 : 0;
   return {
+    reducedMotion,
+    breath: reducedMotion ? 0 : Math.sin(elapsed * 1.2) * (silent ? .35 : .12),
+    gaze: reducedMotion || !silent ? 0 : Math.pow(Math.max(0, Math.sin(elapsed * .71 - 2)), 12) * Math.sin(elapsed * .19) * .65,
+    transition: Math.min(.45, Math.abs(mouth - previous.mouth) * 3),
+    recovery: silent && previous.mouth > .015 ? Math.min(.6, mouth * 2) : 0,
     mouth: mouth < 0.012 ? 0 : mouth,
     rounded: previous.rounded + (roundTarget - previous.rounded) * (1 - Math.exp(-step / 0.07)),
     attentive: previous.attentive + (attentiveTarget - previous.attentive) * (1 - Math.exp(-step / 0.7)),
