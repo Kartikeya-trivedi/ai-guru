@@ -115,7 +115,7 @@ code change, and is out of scope here.
 ## 7. Verify the setup
 
 ```bash
-npm test                                  # 131 unit/integration tests
+npm test                                  # 238 unit/integration tests
 node scripts/validate-gemini-live.mjs     # voice latency vs the real API (needs .env key + quota)
 node scripts/validate-assessment.mjs      # grading judgement + latency
 ```
