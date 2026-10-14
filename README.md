@@ -113,3 +113,4 @@ fictional human face is bundled locally and needs no avatar service; its mouth
 follows speaker audio, with blinks and subtle expressions. This lightweight rig
 does not recognise phonemes. Streamed neural lip-sync remains an explicit
 optional choice. See [local face implementation](docs/LOCAL-FACE.md).
+Contributed by dope-glitch
